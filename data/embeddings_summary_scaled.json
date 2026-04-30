@@ -1,0 +1,15 @@
+{
+  "total_chunks": 41970,
+  "collection_count": 41970,
+  "topics": {
+    "prostate": 13541,
+    "bladder": 13152,
+    "kidney": 12712,
+    "testicular": 2565
+  },
+  "duration_seconds": 847.2951817512512,
+  "estimated_cost_usd": 0.17,
+  "generated_at": "2025-10-21T17:20:19.754147",
+  "collection_name": "urological_oncology_papers",
+  "chroma_db_dir": "chroma_db_scaled"
+}

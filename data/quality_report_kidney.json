@@ -1,0 +1,192 @@
+{
+  "topic": "kidney",
+  "total_papers": 250,
+  "missing_fields": {
+    "title": 0,
+    "abstract": 6,
+    "sections": 0,
+    "authors": 0,
+    "year": 0,
+    "journal": 0,
+    "pmc_id": 0,
+    "pmid": 1
+  },
+  "problematic_count": 89,
+  "problematic_papers": [
+    {
+      "pmc_id": "8359430",
+      "pmid": "33455021",
+      "title": "CMTM6 expression as a potential biomarker for immunotherapy ...",
+      "issues": [
+        "Very short (203 chars)",
+        "Only 2 sections",
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 203,
+      "section_count": 2
+    },
+    {
+      "pmc_id": "11487010",
+      "pmid": "38477131",
+      "title": "A commentary on \u2018The role of cytoreductive nephrectomy in me...",
+      "issues": [
+        "Very short (623 chars)",
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 623,
+      "section_count": 8
+    },
+    {
+      "pmc_id": "11019989",
+      "pmid": "38668669",
+      "title": "A commentary on \u2018The role of cytoreductive nephrectomy in me...",
+      "issues": [
+        "Very short (241 chars)",
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 241,
+      "section_count": 9
+    },
+    {
+      "pmc_id": "12415312",
+      "pmid": "39014977",
+      "title": "\u2018Case of the Month\u2019 from Addenbrooke's Hospital, Cambridge, ...",
+      "issues": [
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 11542,
+      "section_count": 5
+    },
+    {
+      "pmc_id": "10249482",
+      "pmid": "37292242",
+      "title": "Early Integration of Palliative Care for Patients Receiving ...",
+      "issues": [
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 22093,
+      "section_count": 6
+    },
+    {
+      "pmc_id": "8557255",
+      "pmid": "34765405",
+      "title": "Durable Remission with Immunotherapy in a Patient with Sarco...",
+      "issues": [
+        "Only 2 sections",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 7727,
+      "section_count": 2
+    },
+    {
+      "pmc_id": "8640284",
+      "pmid": "34868351",
+      "title": "Novel emerging biomarkers to immunotherapy in kidney cancer",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 29479,
+      "section_count": 9
+    },
+    {
+      "pmc_id": "5730869",
+      "pmid": "29264195",
+      "title": "Novel immunotherapy approaches for metastatic urothelial and...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 64951,
+      "section_count": 17
+    },
+    {
+      "pmc_id": "11408481",
+      "pmid": "39296981",
+      "title": "Exosome in renal cell carcinoma progression and implications...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 43865,
+      "section_count": 12
+    },
+    {
+      "pmc_id": "6708252",
+      "pmid": "31462894",
+      "title": "Cell death-related molecules and biomarkers for renal cell c...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 95601,
+      "section_count": 26
+    }
+  ],
+  "quality_score": 85,
+  "grade": "B (Good)",
+  "text_stats": {
+    "total_text": {
+      "avg": 48187.664,
+      "min": 203,
+      "max": 263304,
+      "median": 40528
+    },
+    "sections": {
+      "avg": 16.728,
+      "min": 2,
+      "max": 58
+    },
+    "abstracts": {
+      "avg": 1549.092,
+      "min": 0,
+      "max": 3063
+    }
+  },
+  "section_stats": {
+    "Introduction": 140,
+    "Materials and Methods": 12,
+    "1. Patients": 1,
+    "2. Treatment regimens": 1,
+    "3. Targeted therapy": 1,
+    "4. Follow-up": 1,
+    "5. Statistical analyses": 1,
+    "6. Ethical statements": 1,
+    "Results": 99,
+    "Discussion": 133,
+    "Conclusion": 63,
+    "Materials and methods": 34,
+    "": 9,
+    "Inclusion and exclusion criteria": 2,
+    "Search strategy": 4,
+    "Study selection and data collection": 1,
+    "Outcome measures": 2,
+    "Statistical analysis": 67,
+    "Study characteristics": 1,
+    "Efficacy": 3
+  },
+  "year_stats": {
+    "2016": 5,
+    "2019": 11,
+    "2022": 35,
+    "2020": 21,
+    "2021": 31,
+    "2018": 12,
+    "2024": 46,
+    "2017": 7,
+    "2023": 55,
+    "2025": 22,
+    "2015": 5
+  }
+}

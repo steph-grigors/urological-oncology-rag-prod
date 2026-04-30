@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  rag-app:
+    build: .
+    container_name: urology-rag
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./chroma_db:/app/chroma_db
+      - ./chroma_db_scaled:/app/chroma_db_scaled
+      - ./rag_ui.py:/app/rag_ui.py
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    env_file:
+      - .env
+    ports:
+      - "8502:8501"
+      - "8505:8503"
+    stdin_open: true
+    tty: true
+    command: /bin/bash

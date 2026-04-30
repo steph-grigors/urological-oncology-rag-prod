@@ -1,0 +1,184 @@
+{
+  "topic": "prostate",
+  "total_papers": 250,
+  "missing_fields": {
+    "title": 0,
+    "abstract": 5,
+    "sections": 0,
+    "authors": 0,
+    "year": 0,
+    "journal": 0,
+    "pmc_id": 0,
+    "pmid": 0
+  },
+  "problematic_count": 103,
+  "problematic_papers": [
+    {
+      "pmc_id": "7824536",
+      "pmid": "33374303",
+      "title": "Update on Prostate Cancer Diagnosis, Prognosis, and Predicti...",
+      "issues": [
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 10959,
+      "section_count": 6
+    },
+    {
+      "pmc_id": "10040503",
+      "pmid": "36947986",
+      "title": "Systemic treatment of metastatic hormone-sensitive prostate ...",
+      "issues": [
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 34300,
+      "section_count": 11
+    },
+    {
+      "pmc_id": "10947655",
+      "pmid": "38166227",
+      "title": "Focal Therapy: Overcoming Barriers for Advances in Prostate ...",
+      "issues": [
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 16944,
+      "section_count": 5
+    },
+    {
+      "pmc_id": "5027204",
+      "pmid": "27699155",
+      "title": "Androgen-Deprivation Therapy and Cardiovascular Disease Risk...",
+      "issues": [
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 6423,
+      "section_count": 6
+    },
+    {
+      "pmc_id": "11110010",
+      "pmid": "38757383",
+      "title": "Role of N 6 \u2011methyladenosine in the pathogenesis, diagnosis ...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 95683,
+      "section_count": 24
+    },
+    {
+      "pmc_id": "7814947",
+      "pmid": "33506020",
+      "title": "Research Progress for the Clinical Application of Circulatin...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 33943,
+      "section_count": 10
+    },
+    {
+      "pmc_id": "6794851",
+      "pmid": "31619289",
+      "title": "CAR-T cell therapy: a potential new strategy against prostat...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 37855,
+      "section_count": 15
+    },
+    {
+      "pmc_id": "11329981",
+      "pmid": "39149902",
+      "title": "Understanding and Addressing Prostate Cancer Disparities in ...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 68178,
+      "section_count": 27
+    },
+    {
+      "pmc_id": "10248352",
+      "pmid": "37271211",
+      "title": "The Application of Radiolabeled Targeted Molecular Probes fo...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 45184,
+      "section_count": 19
+    },
+    {
+      "pmc_id": "7828457",
+      "pmid": "33450939",
+      "title": "Recent Advances in Nanomedicine for the Diagnosis and Treatm...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 181319,
+      "section_count": 13
+    }
+  ],
+  "quality_score": 85,
+  "grade": "B (Good)",
+  "text_stats": {
+    "total_text": {
+      "avg": 51554.704,
+      "min": 6423,
+      "max": 181319,
+      "median": 42508
+    },
+    "sections": {
+      "avg": 15.472,
+      "min": 3,
+      "max": 55
+    },
+    "abstracts": {
+      "avg": 1621.084,
+      "min": 0,
+      "max": 4279
+    }
+  },
+  "section_stats": {
+    "1. Introduction": 37,
+    "2. Methodology": 1,
+    "3. Results": 8,
+    "3.1. Application of AI in Prostate Cancer Diagnosis": 1,
+    "3.1.1. AI in Biopsy-Based Detection of Prostate Cancer": 1,
+    "3.1.2. Artificial Intelligence in MRI-Guided PC Detection": 1,
+    "3.1.3. Artificial Intelligence in Transrectal Ultrasound-Guided Biopsy-Based PC Detection": 1,
+    "3.1.4. Artificial Intelligence in 3D Pathology Based PC Detection": 1,
+    "3.1.5. Artificial Intelligence in Genomics-Based and Proteomics-Based PC Detection": 1,
+    "3.1.6. Artificial Intelligence in CT Scan-Based PC Detection": 1,
+    "3.2. Artificial Intelligence in PC Treatment": 1,
+    "3.3. Recent Advancements and Future Aspects": 1,
+    "3.4. Available Codes and Programs": 1,
+    "4. Conclusions": 3,
+    "Introduction": 122,
+    "Materials and methods": 19,
+    "Literature search strategy": 4,
+    "Study selection": 19,
+    "Data extraction and quality assessment": 4,
+    "Data analysis": 11
+  },
+  "year_stats": {
+    "2022": 29,
+    "2023": 21,
+    "2019": 25,
+    "2017": 34,
+    "2021": 27,
+    "2024": 22,
+    "2018": 34,
+    "2016": 40,
+    "2020": 18
+  }
+}

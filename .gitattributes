@@ -1,0 +1,5 @@
+chroma_db_scaled/** filter=lfs diff=lfs merge=lfs -text
+*.sqlite3 filter=lfs diff=lfs merge=lfs -text
+*.bin filter=lfs diff=lfs merge=lfs -text
+data/papers_fulltext/**/*.json filter=lfs diff=lfs merge=lfs -text
+data/processed_fulltext/**/*.json filter=lfs diff=lfs merge=lfs -text

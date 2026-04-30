@@ -1,0 +1,187 @@
+{
+  "topic": "testicular",
+  "total_papers": 65,
+  "missing_fields": {
+    "title": 0,
+    "abstract": 1,
+    "sections": 0,
+    "authors": 0,
+    "year": 0,
+    "journal": 0,
+    "pmc_id": 0,
+    "pmid": 0
+  },
+  "problematic_count": 21,
+  "problematic_papers": [
+    {
+      "pmc_id": "7020906",
+      "pmid": "32117067",
+      "title": "Editorial: Testicular Cancer: New Insights on the Origin, Ge...",
+      "issues": [
+        "Very short (471 chars)",
+        "Only 2 sections",
+        "No abstract",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 471,
+      "section_count": 2
+    },
+    {
+      "pmc_id": "7065712",
+      "pmid": "32190815",
+      "title": "Adverse Health Outcomes Among US Testicular Cancer Survivors...",
+      "issues": [
+        "Very short (407 chars)",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 407,
+      "section_count": 3
+    },
+    {
+      "pmc_id": "6529845",
+      "pmid": "31156556",
+      "title": "Testicular Cancer\u2014Surgical Treatment",
+      "issues": [
+        "Very short (612 chars)",
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 612,
+      "section_count": 3
+    },
+    {
+      "pmc_id": "11221933",
+      "pmid": "38966772",
+      "title": "Successful treatment and remission of advanced testicular ca...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 7392,
+      "section_count": 9
+    },
+    {
+      "pmc_id": "5835297",
+      "pmid": "29670654",
+      "title": "Toxicities Associated with Cisplatin-Based Chemotherapy and ...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 42625,
+      "section_count": 15
+    },
+    {
+      "pmc_id": "4777219",
+      "pmid": "26736135",
+      "title": "Metastatic testicular cancer presenting with liver and kidne...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 9806,
+      "section_count": 3
+    },
+    {
+      "pmc_id": "7292171",
+      "pmid": "32743452",
+      "title": "Syndrome of inappropriate antidiuretic hormone secretion as ...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 6914,
+      "section_count": 4
+    },
+    {
+      "pmc_id": "6765077",
+      "pmid": "31592278",
+      "title": "Neo Adjuvant Chemotherapy on Testicular Cancer after Scrotal...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 6797,
+      "section_count": 3
+    },
+    {
+      "pmc_id": "11272336",
+      "pmid": "39058861",
+      "title": "Development of Fournier\u2019s gangrene after chemotherapy for th...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 26880,
+      "section_count": 7
+    },
+    {
+      "pmc_id": "11557811",
+      "pmid": "39532799",
+      "title": "Late side effects of testicular cancer and treatment: a comp...",
+      "issues": [
+        "No methods section",
+        "No results section"
+      ],
+      "total_text_length": 54181,
+      "section_count": 18
+    }
+  ],
+  "quality_score": 85,
+  "grade": "B (Good)",
+  "text_stats": {
+    "total_text": {
+      "avg": 36869.56923076923,
+      "min": 407,
+      "max": 104920,
+      "median": 34277
+    },
+    "sections": {
+      "avg": 13.246153846153845,
+      "min": 2,
+      "max": 47
+    },
+    "abstracts": {
+      "avg": 1634.8153846153846,
+      "min": 0,
+      "max": 3152
+    }
+  },
+  "section_stats": {
+    "Background": 11,
+    "Methods": 18,
+    "Patients": 6,
+    "Assessments": 1,
+    "Statistical analysis": 11,
+    "Results": 31,
+    "Arterial stiffness": 1,
+    "Raynaud\u2019s phenomenon": 2,
+    "Vascular biomarkers": 1,
+    "Discussion": 38,
+    "Supplementary information": 3,
+    "Unknown": 5,
+    "Introduction": 29,
+    "Case presentation": 3,
+    "Conclusion": 16,
+    "Author contributions": 5,
+    "Conflict of interest": 4,
+    "Approval of the research protocol by an Institutional Reviewer Board": 2,
+    "Informed consent": 3,
+    "Registry and the Registration No. of the study/trial": 2
+  },
+  "year_stats": {
+    "2020": 12,
+    "2024": 10,
+    "2018": 4,
+    "2017": 1,
+    "2016": 2,
+    "2019": 7,
+    "2022": 6,
+    "2023": 7,
+    "2021": 7,
+    "2015": 5,
+    "2025": 4
+  }
+}

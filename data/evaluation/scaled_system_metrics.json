@@ -1,0 +1,33 @@
+{
+  "evaluation_date": "2025-10-21T22:11:56.362577",
+  "total_queries": 12,
+  "avg_faithfulness": 0.9583333333333334,
+  "avg_relevance": 1.0,
+  "avg_context_precision": 0.9166666666666669,
+  "avg_quality": 0.9583333333333334,
+  "avg_latency": 5.949123740196228,
+  "min_latency": 2.3033242225646973,
+  "max_latency": 10.56218671798706,
+  "per_topic": {
+    "prostate": {
+      "queries": 3,
+      "avg_quality": 1.0,
+      "avg_latency": 7.495265165964763
+    },
+    "bladder": {
+      "queries": 3,
+      "avg_quality": 0.9777777777777777,
+      "avg_latency": 6.6266257762908936
+    },
+    "kidney": {
+      "queries": 3,
+      "avg_quality": 0.8999999999999999,
+      "avg_latency": 5.387831290562947
+    },
+    "testicular": {
+      "queries": 3,
+      "avg_quality": 0.9555555555555554,
+      "avg_latency": 4.286772727966309
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "queries": [
+    {
+      "question": "What are the current treatment options for prostate cancer?",
+      "topic": "prostate",
+      "ground_truth": "Treatment options include active surveillance, surgery (radical prostatectomy), radiation therapy, hormone therapy (ADT), chemotherapy, and targeted therapies."
+    },
+    {
+      "question": "What are the side effects of androgen deprivation therapy?",
+      "topic": "prostate",
+      "ground_truth": "Side effects include hot flashes, decreased libido, erectile dysfunction, fatigue, osteoporosis, weight gain, and metabolic changes."
+    },
+    {
+      "question": "What is castration-resistant prostate cancer and how is it treated?",
+      "topic": "prostate",
+      "ground_truth": "CRPC is prostate cancer that continues to progress despite low testosterone levels. Treatment includes novel hormonal agents, chemotherapy, and immunotherapy."
+    },
+    {
+      "question": "What are the treatment options for bladder cancer?",
+      "topic": "bladder",
+      "ground_truth": "Treatment includes transurethral resection (TURBT), intravesical therapy (BCG or chemotherapy), radical cystectomy, chemotherapy, and immunotherapy."
+    },
+    {
+      "question": "What is the role of BCG immunotherapy in bladder cancer?",
+      "topic": "bladder",
+      "ground_truth": "BCG is an intravesical immunotherapy used for non-muscle invasive bladder cancer to prevent recurrence and progression after TURBT."
+    },
+    {
+      "question": "What are the side effects of intravesical BCG therapy?",
+      "topic": "bladder",
+      "ground_truth": "Common side effects include urinary frequency, dysuria, hematuria, flu-like symptoms. Rare but serious complications include BCG sepsis."
+    },
+    {
+      "question": "What is the role of immunotherapy in kidney cancer treatment?",
+      "topic": "kidney",
+      "ground_truth": "Immunotherapy, particularly checkpoint inhibitors like nivolumab and pembrolizumab, is effective for advanced renal cell carcinoma, often combined with targeted therapy."
+    },
+    {
+      "question": "What are targeted therapies for renal cell carcinoma?",
+      "topic": "kidney",
+      "ground_truth": "Targeted therapies include tyrosine kinase inhibitors (sunitinib, pazopanib, cabozantinib) and mTOR inhibitors (everolimus, temsirolimus)."
+    },
+    {
+      "question": "What is the survival rate for metastatic kidney cancer?",
+      "topic": "kidney",
+      "ground_truth": "With modern therapies including immunotherapy and targeted agents, median survival has improved to 3-4 years or more for metastatic RCC."
+    },
+    {
+      "question": "What are the chemotherapy options for testicular cancer?",
+      "topic": "testicular",
+      "ground_truth": "Primary chemotherapy regimen is BEP (bleomycin, etoposide, cisplatin). Alternatives include EP and VIP for specific cases."
+    },
+    {
+      "question": "What is the cure rate for testicular cancer?",
+      "topic": "testicular",
+      "ground_truth": "Testicular cancer has excellent cure rates, with 5-year survival exceeding 95% overall, and >99% for early-stage disease."
+    },
+    {
+      "question": "What are the long-term side effects of chemotherapy for testicular cancer?",
+      "topic": "testicular",
+      "ground_truth": "Long-term effects include infertility, hearing loss, cardiovascular disease, secondary malignancies, and peripheral neuropathy."
+    }
+  ]
+}

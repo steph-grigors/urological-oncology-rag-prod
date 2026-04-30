@@ -1,0 +1,530 @@
+[
+  {
+    "query_id": 1,
+    "question": "What are the current treatment options for prostate cancer?",
+    "topic": "prostate",
+    "answer": "Current treatment options for prostate cancer include:\n\n1. **Active Surveillance**: Monitoring the cancer closely without immediate treatment, suitable for low-risk cases.\n2. **Surgery**: Radical prostatectomy involves the removal of the prostate and surrounding tissues, often combined with radiation therapy for low-risk cancer.\n3. **Radiation Therapy**: Used as a primary treatment or adjuvantly with surgery.\n4. **Hormonal Therapy (Androgen-Deprivation Therapy)**: Recommended for advanced or recurrent prostate cancer, particularly when the cancer has spread beyond the prostate.\n5. **Chemotherapy**: Typically used for advanced prostate cancer, especially in cases that are resistant to hormonal therapy.\n6. **Cryotherapy**: A less common option that involves freezing cancer cells.\n\nEach treatment is tailored based on tumor characteristics, PSA levels, and the stage of the disease, with considerations for potential side effects and costs [Doc 1].",
+    "num_sources": 5,
+    "latency": 7.0512611865997314,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 1.0,
+    "overall_quality": 1.0,
+    "sources": [
+      {
+        "title": "Prostate Cancer Review: Genetics, Diagnosis, Treatment Options, and Alternative Approaches",
+        "topic": "prostate",
+        "section": "1. Introduction",
+        "pmid": "36080493"
+      },
+      {
+        "title": "Prostate Cancer Review: Genetics, Diagnosis, Treatment Options, and Alternative Approaches",
+        "topic": "prostate",
+        "section": "2.6. Combination Therapy",
+        "pmid": "36080493"
+      },
+      {
+        "title": "Prostate Cancer Review: Genetics, Diagnosis, Treatment Options, and Alternative Approaches",
+        "topic": "prostate",
+        "section": "2. Materials and Methods",
+        "pmid": "36080493"
+      },
+      {
+        "title": "Quo Vadis Advanced Prostate Cancer Therapy? Novel Treatment Perspectives and Possible Future Directions",
+        "topic": "prostate",
+        "section": "5. Multimodal Therapy of Prostate Cancer",
+        "pmid": "33921501"
+      },
+      {
+        "title": "Towards targeted combinatorial therapy design for the treatment of castration-resistant prostate cancer",
+        "topic": "prostate",
+        "section": "Background",
+        "pmid": "28361666"
+      }
+    ]
+  },
+  {
+    "query_id": 2,
+    "question": "What are the side effects of androgen deprivation therapy?",
+    "topic": "prostate",
+    "answer": "Androgen deprivation therapy (ADT) for prostate cancer is associated with several significant side effects, including:\n\n1. **Decreased libido and impotence** - Many patients experience a reduction in sexual desire and erectile dysfunction (PMID: 32232974).\n2. **Fatigue** - A common complaint among patients undergoing ADT (PMID: 32232974).\n3. **Osteoporosis** - ADT increases the risk of bone density loss, leading to osteoporosis (PMID: 36497561).\n4. **Hot flashes** - This is one of the most frequently reported side effects (PMID: 36497561; PMID: 32232974).\n5. **Loss of muscle mass** - Patients may experience a reduction in muscle strength and mass (PMID: 32232974).\n6. **Metabolic disturbances** - These include impaired glucose tolerance, insulin resistance, weight gain, and an increased risk of diabetes and cardiovascular disease (PMID: 32232974; PMID: 36497561).\n\nOverall, these side effects can significantly impact the quality of life and adherence to treatment (PMID: 36497561).",
+    "num_sources": 5,
+    "latency": 4.872347593307495,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 1.0,
+    "overall_quality": 1.0,
+    "sources": [
+      {
+        "title": "Intermittent Use of Anti-Hormonal Agents for the Endocrine Therapy of Sex-Hormone-Dependent Breast and Prostate Cancer: A Protocol for a Systematic Review",
+        "topic": "prostate",
+        "section": "1.2. Side Effects, Quality of Life, and Adherence",
+        "pmid": "36497561"
+      },
+      {
+        "title": "Men's help\u2010seeking in the first year after diagnosis of localised prostate cancer",
+        "topic": "prostate",
+        "section": "Unmet supportive care needs",
+        "pmid": "27111695"
+      },
+      {
+        "title": "Metabolomic effects of androgen deprivation therapy treatment for prostate cancer",
+        "topic": "prostate",
+        "section": "INTRODUCTION",
+        "pmid": "32232974"
+      },
+      {
+        "title": "The role of metastasis-directed therapy and local therapy of the primary tumor in the management of oligometastatic prostate cancer",
+        "topic": "prostate",
+        "section": "2. Radiotherapy for oligometastatic prostate cancer",
+        "pmid": "28868501"
+      },
+      {
+        "title": "Treatment strategies to prevent and reduce gynecomastia and/or breast pain caused by antiandrogen therapy for prostate cancer",
+        "topic": "prostate",
+        "section": "Introduction",
+        "pmid": "32166452"
+      }
+    ]
+  },
+  {
+    "query_id": 3,
+    "question": "What is castration-resistant prostate cancer and how is it treated?",
+    "topic": "prostate",
+    "answer": "Castration-resistant prostate cancer (CRPC) is defined as the progression of prostate cancer despite standard androgen deprivation therapy (ADT), characterized by serum testosterone levels below 50 ng/dL (1.7 nmol/L) (Zarour and Alumkal, 2010). The median survival for patients with CRPC is approximately 14 months, with a significant proportion developing metastasis within two years, leading to increased mortality (Kirby et al., 2011; Hirst et al., 2012).\n\nTreatment options for CRPC are limited and primarily palliative, focusing on extending survival rather than achieving a cure. Current strategies include:\n\n1. **Androgen Deprivation Therapy (ADT)**: Often used in combination with other treatments, ADT remains a cornerstone in managing prostate cancer, including CRPC (Doc 2).\n2. **Chemotherapy**: Combining ADT with chemotherapy has shown to improve survival, although it may come with significant side effects (Doc 2).\n3. **Immunotherapy**: Some studies indicate that combining immunotherapy with ADT can extend survival by approximately 8.5 months (Doc 2).\n4. **Novel agents**: Ongoing clinical trials are investigating new therapeutic approaches, including PARP inhibitors and other targeted therapies (Doc 1).\n\nOverall, while current treatments can extend life, they are not curative, and the search for more effective therapies continues (Doc 2).",
+    "num_sources": 5,
+    "latency": 10.56218671798706,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 1.0,
+    "overall_quality": 1.0,
+    "sources": [
+      {
+        "title": "Comparing efficacy of first-line treatment of metastatic castration resistant prostate cancer: a network meta-analysis of randomized controlled trials",
+        "topic": "prostate",
+        "section": "Introduction",
+        "pmid": "38074136"
+      },
+      {
+        "title": "Prostate Cancer Review: Genetics, Diagnosis, Treatment Options, and Alternative Approaches",
+        "topic": "prostate",
+        "section": "2. Materials and Methods",
+        "pmid": "36080493"
+      },
+      {
+        "title": "Towards targeted combinatorial therapy design for the treatment of castration-resistant prostate cancer",
+        "topic": "prostate",
+        "section": "Background",
+        "pmid": "28361666"
+      },
+      {
+        "title": "Abiraterone Acetate for the Treatment of Chemotherapy-Na\u00efve Metastatic Castration-Resistant Prostate Cancer: An Evidence Review Group Perspective of an NICE Single Technology Appraisal",
+        "topic": "prostate",
+        "section": "The Decision Problem",
+        "pmid": "27566699"
+      },
+      {
+        "title": "Prostate Cancer Review: Genetics, Diagnosis, Treatment Options, and Alternative Approaches",
+        "topic": "prostate",
+        "section": "2.8. Treatment Challenges",
+        "pmid": "36080493"
+      }
+    ]
+  },
+  {
+    "query_id": 4,
+    "question": "What are the treatment options for bladder cancer?",
+    "topic": "bladder",
+    "answer": "The treatment options for bladder cancer vary based on the stage of the disease:\n\n1. **Superficial Bladder Cancer**: \n   - Managed primarily through **transurethral resection** (TUR-BT).\n   - Followed by **intravesical chemotherapy** with agents such as mitomycin, epirubicin, or doxorubicin.\n   - **Intravesical Bacillus Calmette-Gu\u00e9rin (BCG)** is also used as adjuvant immunotherapy, which has been shown to be more effective than chemotherapy in preventing recurrence [Doc 1, PMID: 27784990].\n\n2. **Muscle-Invasive Bladder Cancer**:\n   - Typically treated with **radical cystectomy**, which involves the removal of the bladder and possibly surrounding organs (e.g., prostate, seminal vesicles in men).\n   - This is often followed by **adjuvant therapy**, which may include chemotherapy (e.g., cisplatin alone or in combination with 5-fluorouracil) and/or radiation therapy [Doc 1, PMID: 27784990; Doc 4, PMID: 36131933].\n\n3. **Advanced Bladder Cancer**:\n   - In addition to surgery and chemotherapy, **adjuvant immunotherapy** using immune-checkpoint inhibitors has shown promising results in clinical trials [Doc 4, PMID: 36131933].\n\nOverall, the choice of treatment is influenced by the cancer's stage, the patient's health, and potential side effects.",
+    "num_sources": 5,
+    "latency": 7.876217842102051,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 1.0,
+    "overall_quality": 1.0,
+    "sources": [
+      {
+        "title": "Molecular targets in urothelial cancer: detection, treatment, and animal models of bladder cancer",
+        "topic": "bladder",
+        "section": "Current treatment options",
+        "pmid": "27784990"
+      },
+      {
+        "title": "The role of E3 ubiquitin ligases and deubiquitinases in bladder cancer development and immunotherapy",
+        "topic": "bladder",
+        "section": "FBXW7",
+        "pmid": "37215134"
+      },
+      {
+        "title": "Platelets camouflaged nanovehicle improved bladder cancer immunotherapy by triggering pyroptosis",
+        "topic": "bladder",
+        "section": "Introduction",
+        "pmid": "39479459"
+      },
+      {
+        "title": "Antifungal immunity mediated by C-type lectin receptors may be a novel target in immunotherapy for urothelial bladder cancer",
+        "topic": "bladder",
+        "section": "Introduction",
+        "pmid": "36131933"
+      },
+      {
+        "title": "Unraveling Bacillus Calmette-Gu\u00e9rin (BCG) Therapy Side Effects in Bladder Cancer: A Tale of Triumph Over Treatment Challenges",
+        "topic": "bladder",
+        "section": "Discussion",
+        "pmid": "38226105"
+      }
+    ]
+  },
+  {
+    "query_id": 5,
+    "question": "What is the role of BCG immunotherapy in bladder cancer?",
+    "topic": "bladder",
+    "answer": "BCG (Bacillus Calmette-Gu\u00e9rin) immunotherapy plays a crucial role in the treatment of intermediate and high-risk non-muscle-invasive bladder cancer (NMIBC). It is considered the gold standard for preventing disease relapse and progression. BCG is administered intravesically, typically starting approximately two weeks after transurethral resection of the bladder tumor, with an induction phase consisting of six weekly instillations followed by maintenance therapy for 1 to 3 years to enhance efficacy and reduce recurrence rates [Doc 2].\n\nThe mechanism of action involves the activation of the immune system, particularly T lymphocytes, which target and kill tumor cells. Despite its effectiveness, BCG therapy is associated with a high rate of adverse effects, including systemic side effects in 30-40% of patients and potential life-threatening complications such as sepsis [Doc 1]. Additionally, there are challenges such as supply shortages and the emergence of treatment-resistant cases [Doc 2].",
+    "num_sources": 5,
+    "latency": 5.472285270690918,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 1.0,
+    "overall_quality": 1.0,
+    "sources": [
+      {
+        "title": "Unraveling Bacillus Calmette-Gu\u00e9rin (BCG) Therapy Side Effects in Bladder Cancer: A Tale of Triumph Over Treatment Challenges",
+        "topic": "bladder",
+        "section": "Discussion",
+        "pmid": "38226105"
+      },
+      {
+        "title": "Macrophages directly kill bladder cancer cells through TNF signaling as an early response to BCG therapy",
+        "topic": "bladder",
+        "section": "INTRODUCTION",
+        "pmid": "39114912"
+      },
+      {
+        "title": "Rapamycin enhances BCG-specific \u03b3\u03b4 T cells during intravesical BCG therapy for non-muscle invasive bladder cancer: a randomized, double-blind study",
+        "topic": "bladder",
+        "section": "Introduction",
+        "pmid": "33653802"
+      },
+      {
+        "title": "Bladder cancer immunotherapy parallel advances in BCG optimization and next-generation vaccine platforms",
+        "topic": "bladder",
+        "section": "Mechanisms of BCG in the treatment of bladder cancer",
+        "pmid": "41080567"
+      },
+      {
+        "title": "Unraveling Bacillus Calmette-Gu\u00e9rin (BCG) Therapy Side Effects in Bladder Cancer: A Tale of Triumph Over Treatment Challenges",
+        "topic": "bladder",
+        "section": "Introduction",
+        "pmid": "38226105"
+      }
+    ]
+  },
+  {
+    "query_id": 6,
+    "question": "What are the side effects of intravesical BCG therapy?",
+    "topic": "bladder",
+    "answer": "The side effects of intravesical Bacillus Calmette\u2013Gu\u00e9rin (BCG) therapy primarily include:\n\n1. **Irritative Urinary Symptoms**: Commonly reported symptoms are dysuria, urinary frequency, and urgency, which are usually transient (PMID: 35804844).\n\n2. **Systemic Toxicities**: These can include fever, malaise, and skin rash, occurring in up to 39% of patients, but serious complications requiring treatment cessation are rare (less than 10%) (PMID: 35804844).\n\n3. **Local Complications**: These include cystitis, hematuria, and prostatitis, which are the most frequent adverse effects (PMID: 32577059).\n\n4. **Serious Adverse Effects**: Rarely, patients may experience granulomatous prostatitis, pneumonitis, hepatitis, sepsis, and hypersensitivity reactions (PMID: 32577059).\n\n5. **Extravesical Complications**: These are infrequent and can include distant infections such as miliary tuberculosis, with an incidence of systemic BCG infection reported at 4.3% in some studies (PMID: 32577059).\n\nOverall, while side effects are common, serious complications are rare and manageable.",
+    "num_sources": 5,
+    "latency": 6.531374216079712,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 0.8,
+    "overall_quality": 0.9333333333333332,
+    "sources": [
+      {
+        "title": "BCG in Bladder Cancer Immunotherapy",
+        "topic": "bladder",
+        "section": "5. Safety and Potential Complications",
+        "pmid": "35804844"
+      },
+      {
+        "title": "Renal Tuberculosis Following Intravesical Bacillus Calmette\u2013Gu\u00e9rin (BCG) Immunotherapy for the Treatment of Bladder Cancer",
+        "topic": "bladder",
+        "section": "DISCUSSION",
+        "pmid": "32577059"
+      },
+      {
+        "title": "Intravesical bacillus Calmette-Guerin (BCG) in treating non-muscle invasive bladder cancer\u2014analysis of adverse effects and effectiveness of two strains of BCG (Danish 1331 and Moscow-I)",
+        "topic": "bladder",
+        "section": "AEs of the adjuvant BCG therapy",
+        "pmid": "35509489"
+      },
+      {
+        "title": "Mirabegron improves the irritative symptoms caused by BCG immunotherapy after transurethral resection of bladder tumors",
+        "topic": "bladder",
+        "section": "INTRODUCTION",
+        "pmid": "34547193"
+      },
+      {
+        "title": "Chest wall tumor following intravesical BCG instillation for non-muscle invasive bladder cancer",
+        "topic": "bladder",
+        "section": "Discussion",
+        "pmid": "38623461"
+      }
+    ]
+  },
+  {
+    "query_id": 7,
+    "question": "What is the role of immunotherapy in kidney cancer treatment?",
+    "topic": "kidney",
+    "answer": "Immunotherapy plays a significant role in the treatment of kidney cancer, particularly renal cell carcinoma (RCC). It primarily involves three categories:\n\n1. **Cytokine Therapy**: This includes the use of interleukin-2 (IL-2) and interferon-alpha (IFN-\u03b1), which help stimulate the immune system to attack cancer cells.\n\n2. **Immune Checkpoint Inhibitors (ICIs)**: These are antibodies that target specific co-inhibitory receptors on T cells, such as PD-1, PD-L1, CTLA-4, LAG-3, TIM-3, and TIGIT. By blocking these checkpoints, ICIs enhance T cell activation and proliferation against tumor cells.\n\n3. **Adoptive Cell Therapies**: This includes both non-gene-modified and gene-modified therapies, as well as the use of dendritic cells and vaccines to boost the immune response against cancer.\n\nThe development of these immunotherapeutic strategies is based on extensive research into T cell function and the mechanisms of immune evasion by tumors, aiming to leverage the patient's own immune system to effectively combat cancer [Doc N: PMID 40677703].",
+    "num_sources": 5,
+    "latency": 6.712655782699585,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 0.8,
+    "overall_quality": 0.9333333333333332,
+    "sources": [
+      {
+        "title": "Advances in immunotherapy and targeted therapy for advanced clear-cell renal cell carcinoma: current strategies and future directions",
+        "topic": "kidney",
+        "section": "Immunotherapy in RCC",
+        "pmid": "40677703"
+      },
+      {
+        "title": "Advances in immunotherapy and targeted therapy for advanced clear-cell renal cell carcinoma: current strategies and future directions",
+        "topic": "kidney",
+        "section": "Immunotherapy origins",
+        "pmid": "40677703"
+      },
+      {
+        "title": "Advances in immunotherapy and targeted therapy for advanced clear-cell renal cell carcinoma: current strategies and future directions",
+        "topic": "kidney",
+        "section": "Introduction",
+        "pmid": "40677703"
+      },
+      {
+        "title": "The role of immunotherapy in advanced renal cell carcinoma",
+        "topic": "kidney",
+        "section": "INTRODUCTION",
+        "pmid": "33650838"
+      },
+      {
+        "title": "NK Cell-Based Immunotherapy in Renal Cell Carcinoma",
+        "topic": "kidney",
+        "section": "5. NK Cells and Renal Cell Carcinoma",
+        "pmid": "32013092"
+      }
+    ]
+  },
+  {
+    "query_id": 8,
+    "question": "What are targeted therapies for renal cell carcinoma?",
+    "topic": "kidney",
+    "answer": "Targeted therapies for renal cell carcinoma (RCC) primarily focus on inhibiting specific molecular pathways and oncogenic drivers associated with the disease. Key targeted therapies include:\n\n1. **Hypoxia-inducible factor 2\u03b1 (HIF2\u03b1) inhibition**: This approach disrupts hypoxia response signaling, particularly in clear cell RCC (ccRCC).\n2. **Growth factor signaling blockade**: This includes targeting pathways such as vascular endothelial growth factor (VEGF), platelet-derived growth factor (PDGF), and epidermal growth factor (EGF).\n3. **mTOR pathway modulation**: Inhibition of the mechanistic target of rapamycin (mTOR) is utilized to disrupt cancer cell growth and proliferation.\n4. **Metabolic reprogramming**: This involves interventions such as the inhibition of glutaminase 1 (GLS1) to alter cancer cell metabolism.\n5. **Receptor tyrosine kinase inhibition**: This includes targeting kinases like AXL to prevent tumor growth and metastasis.\n6. **Adenosine pathway modulation**: Targeting adenosine receptors to influence tumor microenvironment and immune response.\n\nThese therapies have evolved from the foundational work on molecular mechanisms of cancer, with significant milestones such as the approval of sorafenib in 2005 marking the beginning of targeted treatments for RCC [Doc 1][Doc 2].",
+    "num_sources": 5,
+    "latency": 6.440842866897583,
+    "faithfulness": 0.5,
+    "relevance": 1.0,
+    "context_precision": 1.0,
+    "overall_quality": 0.8333333333333334,
+    "sources": [
+      {
+        "title": "Advances in immunotherapy and targeted therapy for advanced clear-cell renal cell carcinoma: current strategies and future directions",
+        "topic": "kidney",
+        "section": "Targeted therapy in RCC",
+        "pmid": "40677703"
+      },
+      {
+        "title": "Advances in immunotherapy and targeted therapy for advanced clear-cell renal cell carcinoma: current strategies and future directions",
+        "topic": "kidney",
+        "section": "Targeted therapy origins",
+        "pmid": "40677703"
+      },
+      {
+        "title": "Rationale for immune checkpoint inhibitors plus targeted therapy for advanced renal cell carcinoma",
+        "topic": "kidney",
+        "section": "Introduction",
+        "pmid": "38623200"
+      },
+      {
+        "title": "Adjuvant targeted therapy combined with surgery for advanced and metastatic renal cell carcinoma",
+        "topic": "kidney",
+        "section": "Introduction",
+        "pmid": "33545974"
+      },
+      {
+        "title": "Survival rate comparisons of angioembolization and neoadjuvant targeted therapy on unresectable renal cell carcinoma patients: A systematic review",
+        "topic": "kidney",
+        "section": "Neoadjuvant therapy",
+        "pmid": "39600579"
+      }
+    ]
+  },
+  {
+    "query_id": 9,
+    "question": "What is the survival rate for metastatic kidney cancer?",
+    "topic": "kidney",
+    "answer": "The survival rate for metastatic kidney cancer (renal cell carcinoma, RCC) is generally poor. A study indicated that the median overall survival for patients with metastatic RCC is approximately 5 months, with a 1-year survival rate of 29% [Doc 2]. Additionally, the prognosis can vary significantly based on treatment approaches, such as complete resection of metastases, which has been associated with improved survival outcomes [Doc 2].",
+    "num_sources": 5,
+    "latency": 3.009995222091675,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 0.8,
+    "overall_quality": 0.9333333333333332,
+    "sources": [
+      {
+        "title": "The role of immunotherapy in non-clear cell renal cell carcinoma",
+        "topic": "kidney",
+        "section": "Introduction",
+        "pmid": "36816976"
+      },
+      {
+        "title": "A case of surgical treatment for recurrence of right ventricular metastasis due to renal cell carcinoma after molecular targeted therapy",
+        "topic": "kidney",
+        "section": "Discussion",
+        "pmid": "38833185"
+      },
+      {
+        "title": "Planned Discontinuation of Tyrosine Kinase Inhibitor Therapy in Metastatic Renal Cell Carcinoma: Lessons for the Era of Immunotherapy",
+        "topic": "kidney",
+        "section": "Introduction",
+        "pmid": "38308662"
+      },
+      {
+        "title": "Survival in Metastatic Renal Cell Carcinoma Treated With Immunotherapy and Stereotactic Radiation Therapy or Immunotherapy Alone: A National Cancer Database Analysis",
+        "topic": "kidney",
+        "section": "Results",
+        "pmid": "37408680"
+      },
+      {
+        "title": "Editorial: Immunotherapy in renal cell carcinoma",
+        "topic": "kidney",
+        "section": "Introduction",
+        "pmid": "35965584"
+      }
+    ]
+  },
+  {
+    "query_id": 10,
+    "question": "What are the chemotherapy options for testicular cancer?",
+    "topic": "testicular",
+    "answer": "The chemotherapy options for testicular cancer primarily include:\n\n1. **Standard Treatment for Low-Risk Testicular Cancer**: \n   - Three cycles of Bleomycin, Etoposide, and Cisplatin (BEP) or \n   - Four cycles of Etoposide and Cisplatin [Doc 2].\n\n2. **Treatment for Intermediate-Risk or High-Risk Disease**:\n   - Up to four cycles of BEP or \n   - Four cycles of Etoposide, Ifosfamide, and Cisplatin [Doc 2].\n\n3. **Rescue Chemotherapy for Relapsed Testicular Cancer**:\n   - A standard regimen of Vinblastine, Cisplatin, and Ifosfamide [Doc 2].\n\n4. **Alternative Regimens for Poor Risk Patients**:\n   - Four cycles of BEP or Etoposide, Ifosfamide, and Cisplatin (VIP) [Doc 3].\n\nAdditionally, ongoing studies like the TIGER trial are investigating the efficacy of standard versus high-dose chemotherapy in this context [Doc 1].",
+    "num_sources": 5,
+    "latency": 6.27217698097229,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 0.8,
+    "overall_quality": 0.9333333333333332,
+    "sources": [
+      {
+        "title": "Late side effects of testicular cancer and treatment: a comprehensive review",
+        "topic": "testicular",
+        "section": "Treatment overview",
+        "pmid": "39532799"
+      },
+      {
+        "title": "Association Study Among Candidate Genetic Polymorphisms and Chemotherapy-Related Severe Toxicity in Testicular Cancer Patients",
+        "topic": "testicular",
+        "section": "Introduction",
+        "pmid": "30914949"
+      },
+      {
+        "title": "Delivering Chemotherapy to a Metastatic Poor Risk Testicular Cancer Patient on Hemodialysis",
+        "topic": "testicular",
+        "section": "1. Introduction",
+        "pmid": "35323348"
+      },
+      {
+        "title": "Neo Adjuvant Chemotherapy on Testicular Cancer after Scrotal Exploration: A Case Report",
+        "topic": "testicular",
+        "section": "Discussion",
+        "pmid": "31592278"
+      },
+      {
+        "title": "Thromboembolic events in metastatic testicular cancer treated with cisplatin-based chemotherapy",
+        "topic": "testicular",
+        "section": "INTRODUCTION",
+        "pmid": "33767973"
+      }
+    ]
+  },
+  {
+    "query_id": 11,
+    "question": "What is the cure rate for testicular cancer?",
+    "topic": "testicular",
+    "answer": "The cure rate for testicular cancer is exceptionally high, with a 5-year survival rate exceeding 95% for all stages of the disease [Doc 2]. Additionally, a 10-year cancer-specific survival rate is reported to be around 95% as well, particularly when multimodal treatment is effectively administered [Doc 1].",
+    "num_sources": 5,
+    "latency": 2.3033242225646973,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 0.8,
+    "overall_quality": 0.9333333333333332,
+    "sources": [
+      {
+        "title": "Post-Chemotherapy Retroperitoneal Lymph Node Dissection for Metastatic Testicular Cancer at a National Referral Centre",
+        "topic": "testicular",
+        "section": "1. Introduction",
+        "pmid": "40002203"
+      },
+      {
+        "title": "Treatment-related Cardiovascular Toxicity in Long-term Survivors of Testicular Cancer",
+        "topic": "testicular",
+        "section": "Introduction",
+        "pmid": "28740458"
+      },
+      {
+        "title": "Late side effects of testicular cancer and treatment: a comprehensive review",
+        "topic": "testicular",
+        "section": "Introduction",
+        "pmid": "39532799"
+      },
+      {
+        "title": "Predicting Hearing Loss in Testicular Cancer Patients after Cisplatin-Based Chemotherapy",
+        "topic": "testicular",
+        "section": "1. Introduction",
+        "pmid": "37568739"
+      },
+      {
+        "title": "Advances in the treatment of testicular cancer",
+        "topic": "testicular",
+        "section": "Epidemiology",
+        "pmid": "26816836"
+      }
+    ]
+  },
+  {
+    "query_id": 12,
+    "question": "What are the long-term side effects of chemotherapy for testicular cancer?",
+    "topic": "testicular",
+    "answer": "Long-term side effects of chemotherapy for testicular cancer include:\n\n1. **Second Malignancies**: Survivors are at increased risk for developing secondary cancers, particularly after 10 years post-treatment [Doc 1, PMID: 26123546].\n\n2. **Cardiovascular Disease**: There is a heightened risk of cardiovascular issues, which may be exacerbated by metabolic syndrome, particularly in individuals with conditions like Down syndrome [Doc 1, PMID: 26123546].\n\n3. **Pulmonary Toxicity**: Long-term lung function impairment can occur due to chemotherapy [Doc 1, PMID: 26123546].\n\n4. **Nephrotoxicity**: Kidney function may be adversely affected following treatment [Doc 1, PMID: 26123546].\n\n5. **Neurotoxicity**: Cognitive impairments, including issues with memory and executive function, have been reported even decades after treatment [Doc 2, PMID: 32576890].\n\n6. **Decreased Fertility**: Chemotherapy can lead to reduced reproductive function in men [Doc 2, PMID: 32576890].\n\n7. **Psychosocial Problems**: Survivors may experience long-lasting anxiety, depression, and fatigue, with psychological effects persisting for many years post-treatment [Doc 2, PMID: 32576890].\n\nThese side effects highlight the importance of long-term follow-up care for testicular cancer survivors.",
+    "num_sources": 5,
+    "latency": 4.2848169803619385,
+    "faithfulness": 1.0,
+    "relevance": 1.0,
+    "context_precision": 1.0,
+    "overall_quality": 1.0,
+    "sources": [
+      {
+        "title": "Exploration of the treatment challenges in men with intellectual difficulties and testicular cancer as seen in Down syndrome: single centre experience",
+        "topic": "testicular",
+        "section": "Methods",
+        "pmid": "26123546"
+      },
+      {
+        "title": "Transient effects of chemotherapy for testicular cancer on mouse behaviour",
+        "topic": "testicular",
+        "section": "Introduction",
+        "pmid": "32576890"
+      },
+      {
+        "title": "Treatment-related Cardiovascular Toxicity in Long-term Survivors of Testicular Cancer",
+        "topic": "testicular",
+        "section": "Introduction",
+        "pmid": "28740458"
+      },
+      {
+        "title": "Treatment-related Cardiovascular Toxicity in Long-term Survivors of Testicular Cancer",
+        "topic": "testicular",
+        "section": "Introduction",
+        "pmid": "28740458"
+      },
+      {
+        "title": "Exploration of the treatment challenges in men with intellectual difficulties and testicular cancer as seen in Down syndrome: single centre experience",
+        "topic": "testicular",
+        "section": "Survivorship issues",
+        "pmid": "26123546"
+      }
+    ]
+  }
+]

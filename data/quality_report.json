@@ -1,0 +1,44 @@
+{
+  "total_papers": 49,
+  "missing_fields": {
+    "title": 0,
+    "abstract": 0,
+    "sections": 0,
+    "full_text": 0,
+    "authors": 0,
+    "publication_date": 0,
+    "journal": 0
+  },
+  "problematic_count": 36,
+  "quality_score": 85,
+  "grade": "B (Good)",
+  "text_stats": {
+    "full_text": {
+      "avg": 75970.6530612245,
+      "min": 23431,
+      "max": 399358,
+      "median": 61409
+    },
+    "sections": {
+      "avg": 74771.3469387755,
+      "min": 22932,
+      "max": 395121
+    },
+    "abstracts": {
+      "avg": 1521.204081632653,
+      "min": 213,
+      "max": 3715
+    }
+  },
+  "year_stats": {
+    "2020": 3,
+    "2021": 5,
+    "2025": 4,
+    "2022": 10,
+    "2019": 1,
+    "2023": 9,
+    "2015": 2,
+    "2024": 14,
+    "2018": 1
+  }
+}
