@@ -1,0 +1,24 @@
+What was created (57 files, no existing files touched)
+
+config/
+- settings.py — Fully implemented Pydantic BaseSettings with all 25 fields you specified, @field_validator ensuring overlap < chunk size, and an @lru_cache get_settings() factory
+- constants.py — STUDY_DESIGN_HIERARCHY (15 evidence levels), STUDY_DESIGN_WEIGHTS (float scores per level), SECTION_PRIORITY map, SKIP_SECTIONS set, BM25_K1/B, RRF_K, confidence tier thresholds, MAX_ANSWER_TOKENS, and MEDICAL_DISCLAIMER
+
+src/ packages (6 new packages, 29 files)
+Each module docstring describes its contract, public API shape (typed signatures), design decisions, and how it fits into the pipeline — ready to implement against.
+
+Notable design choices captured in the docstrings:
+- ingestion/chunk.py — context_prefix = title + section prepended before embedding (ablation-togglable)
+- ingestion/extract_metadata.py — only abstract + section titles sent to LLM (cost control)
+- retrieval/reranker.py — study-design weighted geometric mean: score^0.8 * evidence_weight^0.2
+- generation/confidence.py — 4 sub-signals: mean rerank score, score spread, topic coverage, source diversity
+- observability/audit.py — INSERT-only Postgres table with row-level security
+
+tests/ (12 files)
+- Unit tests: stubs with raise NotImplementedError per test case (named precisely enough to implement without ambiguity)
+- Integration tests: marked @pytest.mark.integration / @pytest.mark.eval, excluded from default runs
+- golden_queries.json — 12 fully annotated queries (G001–G012), all 4 topics, 3 difficulty levels, 5 question types, with ground-truth answers based on real clinical evidence
+
+docker/
+- docker-compose.yml — app + UI + Qdrant (v1.9) + Postgres 16 with health checks and named volumes
+- .env.example — all 20 variables documented

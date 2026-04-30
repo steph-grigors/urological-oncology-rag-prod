@@ -1,0 +1,4 @@
+# Place 5-10 real PMC full-text JSON files here for integration test fixtures.
+# Filename convention: PMC{pmc_id}.json
+# These files are used by tests/integration/ to populate a test Qdrant collection.
+# Do not commit large files — use git-lfs or download them in CI via a fixture script.

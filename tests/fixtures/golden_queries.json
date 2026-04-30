@@ -1,0 +1,126 @@
+{
+  "version": "1.0",
+  "description": "Golden query set for urological oncology RAG system evaluation",
+  "queries": [
+    {
+      "id": "G001",
+      "question": "What are the current first-line treatment options for metastatic castration-sensitive prostate cancer?",
+      "topic": "prostate",
+      "difficulty": "medium",
+      "question_type": "treatment",
+      "ground_truth": "First-line treatment for metastatic castration-sensitive prostate cancer (mCSPC) combines androgen deprivation therapy (ADT) with docetaxel chemotherapy or novel hormonal agents (enzalutamide, abiraterone, apalutamide, darolutamide). The CHAARTED and STAMPEDE trials demonstrated survival benefit for docetaxel + ADT in high-volume disease. The ARCHES, ENZAMET, TITAN, and ARASENS trials established the AR-targeting combinations. Triplet therapy (ADT + docetaxel + darolutamide) showed further OS benefit in ARASENS.",
+      "expected_sources": [],
+      "notes": "Tests treatment knowledge across multiple RCTs"
+    },
+    {
+      "id": "G002",
+      "question": "What are the side effects of androgen deprivation therapy for prostate cancer?",
+      "topic": "prostate",
+      "difficulty": "easy",
+      "question_type": "safety",
+      "ground_truth": "ADT side effects include hot flashes, decreased libido, erectile dysfunction, fatigue, osteoporosis (increased fracture risk), weight gain, metabolic syndrome, anaemia, cognitive impairment, depression, and increased cardiovascular risk. Bone-protecting agents (bisphosphonates, denosumab) are recommended to mitigate skeletal-related events.",
+      "expected_sources": [],
+      "notes": "Common clinical question; tests safety profile coverage"
+    },
+    {
+      "id": "G003",
+      "question": "What defines castration-resistant prostate cancer and what are the treatment options?",
+      "topic": "prostate",
+      "difficulty": "medium",
+      "question_type": "treatment",
+      "ground_truth": "CRPC is defined as disease progression (PSA rise or radiographic progression) despite castrate testosterone levels (< 50 ng/dL). Treatment options include enzalutamide, abiraterone acetate, docetaxel, cabazitaxel (post-docetaxel), radium-223 (bone metastases), sipuleucel-T, olaparib/rucaparib (HRR gene mutations), pembrolizumab (MSI-H/TMB-H).",
+      "expected_sources": [],
+      "notes": "Requires understanding of resistance mechanism"
+    },
+    {
+      "id": "G004",
+      "question": "What is the role of BCG immunotherapy in non-muscle-invasive bladder cancer?",
+      "topic": "bladder",
+      "difficulty": "easy",
+      "question_type": "treatment",
+      "ground_truth": "BCG (Bacillus Calmette-Guérin) intravesical immunotherapy is the standard of care for high-risk NMIBC following TURBT. It reduces recurrence and progression to muscle-invasive disease. Standard schedule is induction (6 weekly instillations) followed by maintenance therapy for up to 3 years (Lamm/SWOG protocol). BCG is superior to intravesical chemotherapy for high-risk disease.",
+      "expected_sources": [],
+      "notes": "Classic NMIBC management question"
+    },
+    {
+      "id": "G005",
+      "question": "What are the treatment options for muscle-invasive bladder cancer?",
+      "topic": "bladder",
+      "difficulty": "medium",
+      "question_type": "treatment",
+      "ground_truth": "Standard treatment for MIBC (T2-T4a N0 M0) is neoadjuvant cisplatin-based chemotherapy (gemcitabine/cisplatin or MVAC) followed by radical cystectomy. Bladder-sparing trimodal therapy (TURBT + chemotherapy + radiotherapy) is an alternative for selected patients. PD-L1 inhibitors (pembrolizumab, atezolizumab) are first-line for cisplatin-ineligible patients or maintenance therapy (avelumab).",
+      "expected_sources": [],
+      "notes": "Tests multi-modal treatment knowledge"
+    },
+    {
+      "id": "G006",
+      "question": "What are the serious adverse effects of intravesical BCG therapy?",
+      "topic": "bladder",
+      "difficulty": "medium",
+      "question_type": "safety",
+      "ground_truth": "BCG side effects range from local (urinary frequency, dysuria, haematuria, cystitis) to systemic. Serious complications include BCG sepsis (BCGosis), granulomatous prostatitis, epididymo-orchitis, hepatitis, and pneumonitis. BCG sepsis requires immediate isoniazid + rifampicin + corticosteroids. BCG is contraindicated within 2 weeks of TURBT, in immunocompromised patients, and with macroscopic haematuria.",
+      "expected_sources": [],
+      "notes": "Clinical safety question; tests complication management"
+    },
+    {
+      "id": "G007",
+      "question": "What is the role of immune checkpoint inhibitors in metastatic renal cell carcinoma?",
+      "topic": "kidney",
+      "difficulty": "medium",
+      "question_type": "treatment",
+      "ground_truth": "Checkpoint inhibitors have replaced sunitinib as first-line therapy for most metastatic ccRCC patients. Combination regimens: ipilimumab + nivolumab (CheckMate 214), pembrolizumab + axitinib (KEYNOTE-426), nivolumab + cabozantinib (CheckMate 9ER), pembrolizumab + lenvatinib (CLEAR). Nivolumab monotherapy is approved second-line (CheckMate 025).",
+      "expected_sources": [],
+      "notes": "Rapidly evolving field; tests current guidelines"
+    },
+    {
+      "id": "G008",
+      "question": "What targeted therapies are approved for renal cell carcinoma and what are their mechanisms?",
+      "topic": "kidney",
+      "difficulty": "hard",
+      "question_type": "mechanism",
+      "ground_truth": "VEGF pathway TKIs: sunitinib, pazopanib, axitinib, cabozantinib (also MET/AXL inhibitor), lenvatinib (VEGFR/FGFR). mTOR inhibitors: everolimus, temsirolimus. These target the VHL-HIF axis dysregulated in 80% of clear cell RCC. Cabozantinib has additional activity in bone metastases via MET inhibition.",
+      "expected_sources": [],
+      "notes": "Mechanism question requiring molecular knowledge"
+    },
+    {
+      "id": "G009",
+      "question": "What is the prognosis for patients with metastatic clear cell renal cell carcinoma?",
+      "topic": "kidney",
+      "difficulty": "medium",
+      "question_type": "prognosis",
+      "ground_truth": "Prognosis is stratified by IMDC (International Metastatic RCC Database Consortium) risk score. Favourable risk: median OS 43 months. Intermediate risk: median OS 23 months. Poor risk: median OS 8 months. With modern immunotherapy combinations (nivolumab + ipilimumab), 4-year OS rates of ~50% are reported in intermediate/poor risk patients.",
+      "expected_sources": [],
+      "notes": "Prognostic scoring system knowledge"
+    },
+    {
+      "id": "G010",
+      "question": "What is the standard chemotherapy regimen for metastatic germ cell tumours?",
+      "topic": "testicular",
+      "difficulty": "easy",
+      "question_type": "treatment",
+      "ground_truth": "BEP (bleomycin 30U days 1/8/15, etoposide 100 mg/m² days 1-5, cisplatin 20 mg/m² days 1-5) every 21 days is the standard regimen. Good-risk disease: 3 cycles BEP (or 4 cycles EP). Intermediate/poor-risk: 4 cycles BEP. EP (etoposide/cisplatin, without bleomycin) is used when bleomycin is contraindicated.",
+      "expected_sources": [],
+      "notes": "Fundamental testicular cancer treatment"
+    },
+    {
+      "id": "G011",
+      "question": "What is the overall cure rate for testicular cancer and how does stage affect prognosis?",
+      "topic": "testicular",
+      "difficulty": "easy",
+      "question_type": "prognosis",
+      "ground_truth": "Testicular cancer has the highest cure rate among solid tumours. Stage I: >99% 5-year survival. Stage II: ~95%. Stage III good-risk (IGCCCG): ~90%. Stage III intermediate-risk: ~75%. Stage III poor-risk: ~50%. Overall 5-year survival exceeds 95%. Even metastatic disease is often curable with BEP chemotherapy.",
+      "expected_sources": [],
+      "notes": "General prognosis question; should be easy given corpus"
+    },
+    {
+      "id": "G012",
+      "question": "What are the long-term sequelae of cisplatin-based chemotherapy in testicular cancer survivors?",
+      "topic": "testicular",
+      "difficulty": "hard",
+      "question_type": "safety",
+      "ground_truth": "Long-term effects include: cardiovascular disease (accelerated atherosclerosis, hypertension), peripheral neuropathy (cumulative cisplatin dose-dependent), ototoxicity (high-frequency hearing loss), renal impairment (cisplatin nephrotoxicity), hypogonadism and infertility, secondary malignancies (leukaemia from etoposide, solid tumours from radiation if used), Raynaud's phenomenon, and pulmonary toxicity (bleomycin-induced).",
+      "expected_sources": [],
+      "notes": "Complex survivorship question; tests depth of safety knowledge"
+    }
+  ]
+}
