@@ -1,34 +1,113 @@
 """
-SQLAlchemy ORM models.
-
-Defines the Postgres schema for all application tables.
-Use `alembic revision --autogenerate` after adding or modifying models.
-
-Tables (to be implemented):
-
-    papers
-        pmc_id (PK), pmid, doi, title, abstract, journal, year, topic,
-        authors (JSONB), study_design, cancer_subtype, patient_population,
-        intervention, comparator, created_at, updated_at
-
-    chunks
-        id (PK, deterministic hash), pmc_id (FK → papers.pmc_id),
-        text, section_name, section_type, chunk_index, total_chunks,
-        tsvector_col (TSVECTOR, generated from text, indexed GIN),
-        created_at
-
-    audit_log
-        query_id (PK, UUID), timestamp (timestamptz, NOT NULL),
-        question (TEXT), rewritten_query (TEXT), answer (TEXT),
-        confidence (FLOAT), gate_decision (VARCHAR), model (VARCHAR),
-        provider (VARCHAR), input_tokens (INT), output_tokens (INT),
-        latency_ms (FLOAT), sources (JSONB), user_id (VARCHAR),
-        session_id (VARCHAR), hallucinated_citations (JSONB),
-        -- INSERT-only: no UPDATE/DELETE granted to app role
-
-Indexes:
-    chunks.tsvector_col     GIN index for full-text search
-    chunks.pmc_id           B-tree for join to papers
-    audit_log.timestamp     B-tree for time-range queries
-    audit_log.session_id    B-tree for conversation history retrieval
+SQLAlchemy ORM models for all application tables.
 """
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Paper(Base):
+    __tablename__ = "papers"
+
+    pmc_id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    pmid: Mapped[str | None] = mapped_column(String(20))
+    doi: Mapped[str | None] = mapped_column(String(100))
+    title: Mapped[str | None] = mapped_column(Text)
+    abstract: Mapped[str | None] = mapped_column(Text)
+    journal: Mapped[str | None] = mapped_column(String(300))
+    year: Mapped[int | None] = mapped_column(Integer)
+    topic: Mapped[str | None] = mapped_column(String(50))
+    authors: Mapped[dict | None] = mapped_column(JSON)
+    study_design: Mapped[str | None] = mapped_column(String(50))
+    cancer_subtype: Mapped[str | None] = mapped_column(String(100))
+    patient_population: Mapped[str | None] = mapped_column(Text)
+    intervention: Mapped[str | None] = mapped_column(Text)
+    comparator: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    chunks: Mapped[list["Chunk"]] = relationship("Chunk", back_populates="paper")
+
+
+class Chunk(Base):
+    __tablename__ = "chunks"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    pmc_id: Mapped[str] = mapped_column(ForeignKey("papers.pmc_id"), index=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    section_name: Mapped[str | None] = mapped_column(String(100))
+    section_type: Mapped[str | None] = mapped_column(String(50))
+    chunk_index: Mapped[int | None] = mapped_column(Integer)
+    total_chunks: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    paper: Mapped["Paper"] = relationship("Paper", back_populates="chunks")
+
+    # ix_chunks_pmc_id is created automatically by index=True on the pmc_id column.
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    query_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    question: Mapped[str | None] = mapped_column(Text)
+    rewritten_query: Mapped[str | None] = mapped_column(Text)
+    answer: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    gate_decision: Mapped[str | None] = mapped_column(String(20))
+    model: Mapped[str | None] = mapped_column(String(100))
+    provider: Mapped[str | None] = mapped_column(String(20))
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    latency_ms: Mapped[float | None] = mapped_column(Float)
+    sources: Mapped[list | None] = mapped_column(JSON)
+    user_id: Mapped[str | None] = mapped_column(String(100))
+    session_id: Mapped[str | None] = mapped_column(String(100))
+    hallucinated_citations: Mapped[list | None] = mapped_column(JSON)
+    flagged: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    __table_args__ = (
+        Index("ix_audit_log_timestamp", "timestamp"),
+        Index("ix_audit_log_session_id", "session_id"),
+    )
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class ConversationHistory(Base):
+    __tablename__ = "conversation_history"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(String(36), index=True)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

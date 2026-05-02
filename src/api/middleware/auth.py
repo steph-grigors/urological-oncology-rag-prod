@@ -1,27 +1,44 @@
 """
-API key authentication middleware.
-
-Reads the API key from the `X-API-Key` header (configurable via
-`settings.api_key_header`) and validates it against the `settings.api_keys`
-list.
-
-Behaviour:
-    - /health/live and /health/ready are always exempt from auth (probes must
-      not require credentials).
-    - All other routes require a valid API key.
-    - Invalid or missing key → 401 with a generic error message (never reveal
-      whether the key exists but is wrong vs. not set at all).
-    - Keys are compared in constant time to prevent timing attacks.
-
-Implementation:
-    FastAPI `Request`-based dependency (`Depends(require_api_key)`) rather
-    than Starlette middleware, so Swagger UI still works in development
-    (APP_ENV == "development" → auth is skipped).
-
-Public API (to be implemented):
-    async def require_api_key(
-        request: Request,
-        settings: Settings = Depends(get_settings),
-    ) -> str:
-        Return the validated API key string, or raise HTTPException(401).
+API key authentication — FastAPI Depends function.
 """
+
+from __future__ import annotations
+
+import hmac
+
+from fastapi import Depends, HTTPException, Request
+
+from config.settings import Settings, get_settings
+
+# Paths that never require authentication
+_EXEMPT = {"/health/live", "/health/ready"}
+
+
+async def require_api_key(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> str:
+    """
+    Return the validated API key, or raise HTTP 401.
+
+    Skips auth entirely when:
+      - The path is in the exempt set (/health probes).
+      - APP_ENV == "development" and no keys are configured.
+    Keys are compared in constant time to prevent timing attacks.
+    """
+    if request.url.path in _EXEMPT:
+        return ""
+
+    # Development bypass — allows local testing without setting API_KEYS
+    if settings.app_env == "development" and not settings.api_keys:
+        return "dev"
+
+    key = request.headers.get(settings.api_key_header, "")
+    if not key:
+        raise HTTPException(status_code=401, detail="Missing API key")
+
+    for valid in settings.api_keys:
+        if hmac.compare_digest(key.encode(), valid.encode()):
+            return key
+
+    raise HTTPException(status_code=401, detail="Invalid API key")

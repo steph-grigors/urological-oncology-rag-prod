@@ -1,37 +1,85 @@
 """
-Langfuse distributed tracing integration.
+Langfuse distributed tracing — gracefully degrades to no-ops when not configured.
+"""
 
-Every query is traced as a Langfuse `Trace` with nested `Span` objects for
-each pipeline step.  This provides per-step latency breakdown, token counts,
-and cost attribution visible in the Langfuse dashboard.
+from __future__ import annotations
 
-Trace structure for a typical query:
-    Trace: query (query_id)
-        Span: retrieval
-            Span: vector_search         (latency, top_k)
-            Span: bm25_search           (latency, top_k)
-            Span: rrf_fusion            (latency, num_candidates)
-            Span: reranking             (latency, cohere_tokens)
-        Span: confidence_gating         (score, gate_decision)
-        Span: generation                (latency, input_tokens, output_tokens, model)
-        Span: citation_check            (hallucinated_citations)
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, Iterator
 
-Graceful degradation:
-    If LANGFUSE_PUBLIC_KEY is not set, all tracing calls become no-ops.
-    Application code should never have try/except blocks around tracer calls —
-    the tracer itself handles the disabled state transparently.
+if TYPE_CHECKING:
+    from config.settings import Settings
 
-Public API (to be implemented):
-    def setup_tracing(settings: Settings) -> None:
-        Initialise the Langfuse client.  Call once at startup.
+# Optional Langfuse import — no-op if package not installed or key not set
+try:
+    import langfuse as _langfuse_module
+    _LANGFUSE_AVAILABLE = True
+except ImportError:
+    _langfuse_module = None  # type: ignore[assignment]
+    _LANGFUSE_AVAILABLE = False
+
+_client: Any = None
+
+
+def setup_tracing(settings: "Settings") -> None:
+    """Initialise the Langfuse client. Call once at startup."""
+    global _client
+    if not _LANGFUSE_AVAILABLE or not settings.langfuse_public_key:
+        return
+    _client = _langfuse_module.Langfuse(
+        public_key=settings.langfuse_public_key,
+        secret_key=settings.langfuse_secret_key,
+        host=settings.langfuse_host,
+    )
+
+
+# ── No-op stubs used when Langfuse is disabled ────────────────────────────────
+
+class _NullSpan:
+    def __enter__(self) -> "_NullSpan":
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        pass
+
+    def end(self, **kwargs: Any) -> None:
+        pass
+
+
+class QueryTrace:
+    """Wraps a Langfuse trace (or no-ops when tracing is disabled)."""
+
+    def __init__(self, trace: Any = None) -> None:
+        self._trace = trace
 
     @contextmanager
-    def trace_query(query_id: str, question: str) -> Iterator[QueryTrace]:
-        Context manager that opens a Langfuse trace and yields a
-        `QueryTrace` helper for creating child spans.
+    def span(self, name: str, **kwargs: Any) -> Iterator[Any]:
+        if self._trace is None:
+            yield _NullSpan()
+            return
+        s = self._trace.span(name=name, **kwargs)
+        try:
+            yield s
+        finally:
+            s.end()
 
-    class QueryTrace:
-        def span(self, name: str, **kwargs) -> ContextManager[Span]: ...
-        def score(self, name: str, value: float, comment: str = "") -> None: ...
-        def set_metadata(self, **kwargs) -> None: ...
-"""
+    def score(self, name: str, value: float, comment: str = "") -> None:
+        if self._trace is not None:
+            self._trace.score(name=name, value=value, comment=comment)
+
+    def set_metadata(self, **kwargs: Any) -> None:
+        if self._trace is not None:
+            self._trace.update(metadata=kwargs)
+
+
+@contextmanager
+def trace_query(query_id: str, question: str) -> Iterator[QueryTrace]:
+    """Open a Langfuse trace for one query, yielding a QueryTrace helper."""
+    if _client is None:
+        yield QueryTrace(None)
+        return
+    trace = _client.trace(id=query_id, input=question)
+    try:
+        yield QueryTrace(trace)
+    finally:
+        _client.flush()
