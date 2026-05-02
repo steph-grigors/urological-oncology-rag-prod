@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>Urology Case Reports</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001004</article-id>
+      <article-id pub-id-type="pmc">1004</article-id>
+      <article-id pub-id-type="doi">10.1016/j.eucr.2020.01.004</article-id>
+      <title-group>
+        <article-title>Spontaneous Regression of Prostate Cancer Following Androgen Deprivation Withdrawal: A Case Report</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>Patel</surname><given-names>Nikhil</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2020</year>
+      </pub-date>
+      <abstract>
+        <p>We report a rare case of spontaneous PSA decline and radiographic tumour regression in a 74-year-old male with castration-resistant prostate cancer following discontinuation of bicalutamide androgen deprivation therapy. The antiandrogen withdrawal syndrome was documented with serial PSA measurements and contrast-enhanced CT imaging over a 6-month observation period.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Antiandrogen withdrawal syndrome (AAWS) is a paradoxical decline in PSA following discontinuation of first-generation antiandrogen therapy such as bicalutamide or flutamide in castration-resistant prostate cancer. The phenomenon is thought to result from AR mutations that cause antiandrogens to act as agonists rather than antagonists.</p>
+    </sec>
+    <sec>
+      <title>Case Presentation</title>
+      <p>A 74-year-old male with a 5-year history of prostate cancer presented with a rising PSA of 42 ng/mL while receiving bicalutamide 50 mg daily and goserelin 10.8 mg every 12 weeks. The patient had no symptoms but had evidence of new osseous metastases on bone scan. Bicalutamide was discontinued and the patient was followed with serial PSA measurements every 4 weeks.</p>
+      <p>Four weeks after bicalutamide withdrawal, PSA declined to 28 ng/mL. At 12 weeks, PSA was 12 ng/mL. At 6 months, PSA had nadir at 4.3 ng/mL representing an 89% decline from peak. Repeat CT chest, abdomen, and pelvis demonstrated interval reduction in retroperitoneal lymphadenopathy.</p>
+    </sec>
+    <sec>
+      <title>Discussion</title>
+      <p>This case demonstrates classic antiandrogen withdrawal syndrome in a patient with castration-resistant prostate cancer. The PSA response was durable for approximately 8 months before progression occurred. This observation period allowed delay of cytotoxic or novel hormonal therapy.</p>
+      <p>Clinicians should routinely attempt antiandrogen withdrawal before initiating second-line therapy in patients with castration-resistant prostate cancer who are receiving first-generation antiandrogens. A PSA response of at least 50% occurs in approximately 15-33% of such patients.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>This case illustrates antiandrogen withdrawal syndrome as a clinical phenomenon that should be considered in castration-resistant prostate cancer management. Recognition of this response can avoid unnecessary escalation of systemic therapy.</p>
+    </sec>
+  </body>
+</article>

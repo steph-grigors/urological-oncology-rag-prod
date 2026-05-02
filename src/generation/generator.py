@@ -1,52 +1,126 @@
 """
 LLM call logic with provider abstraction and citation verification.
-
-Supports both Anthropic (Claude) and OpenAI (GPT) as generation backends,
-selected by `settings.generation_provider`.  Switching providers requires
-only a config change, not code changes.
-
-Anthropic-specific features used when provider == "anthropic":
-    - Extended thinking (budget_tokens configurable per request).
-    - Prompt caching for the system prompt (cache_control: ephemeral)
-      to reduce latency and cost on repeated calls with the same system prompt.
-
-Citation grounding check:
-    After generation, a lightweight post-processing step verifies that each
-    [Doc N] citation in the answer actually appears in the context block.
-    Hallucinated citations (e.g., [Doc 7] when only 5 docs were provided)
-    are stripped and logged as a warning.
-
-Public API (to be implemented):
-    class Generator:
-        def __init__(
-            self,
-            settings: Settings,
-            anthropic_client=None,
-            openai_client=None,
-        ): ...
-
-        def generate(
-            self,
-            messages: list[dict],
-            model: str | None = None,
-            max_tokens: int = MAX_ANSWER_TOKENS,
-            stream: bool = False,
-        ) -> GenerationResult | Iterator[str]: ...
-
-        def check_citations(
-            self,
-            answer: str,
-            num_docs: int,
-        ) -> tuple[str, list[int]]:
-            Return (cleaned_answer, list_of_hallucinated_doc_numbers).
-
-    GenerationResult(dataclass)
-        answer: str
-        model: str
-        provider: str
-        input_tokens: int
-        output_tokens: int
-        latency_ms: float
-        hallucinated_citations: list[int]   # doc numbers stripped
-        cache_hit: bool                     # Anthropic prompt cache hit
 """
+
+from __future__ import annotations
+
+import re
+import time
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+from config.constants import MAX_ANSWER_TOKENS
+from src.generation.confidence import ConfidenceGate, compute_confidence, gate
+from src.generation.prompts import LOW_CONFIDENCE_REFUSAL, SYSTEM_PROMPT, build_prompt
+
+if TYPE_CHECKING:
+    from src.generation.llm_client import LLMClient
+    from src.retrieval.reranker import RankedChunk
+
+_CITATION_RE = re.compile(r"\[Doc (\d+)\]")
+
+
+@dataclass
+class GenerationResult:
+    answer: str
+    citations: list[int]
+    evidence_quality: str
+    model_used: str
+    provider: str
+    prompt_tokens: int
+    completion_tokens: int
+    confidence_score: float = 0.0
+    hallucinated_citations: list[int] = field(default_factory=list)
+    latency_ms: float = 0.0
+
+
+class ClinicalGenerator:
+    def __init__(self, llm_client: "LLMClient | None" = None) -> None:
+        self._llm = llm_client
+
+    def generate(
+        self,
+        query: str,
+        ranked_chunks: list["RankedChunk"],
+        conversation_history: list[dict] | None = None,
+    ) -> GenerationResult:
+        confidence_result = compute_confidence(ranked_chunks)
+        confidence_gate = gate(confidence_result.score)
+
+        if confidence_gate == ConfidenceGate.REFUSED:
+            return GenerationResult(
+                answer=LOW_CONFIDENCE_REFUSAL,
+                citations=[],
+                evidence_quality="insufficient",
+                model_used="",
+                provider="",
+                prompt_tokens=0,
+                completion_tokens=0,
+                confidence_score=confidence_result.score,
+            )
+
+        if self._llm is None:
+            return GenerationResult(
+                answer="No LLM client configured.",
+                citations=[],
+                evidence_quality="unknown",
+                model_used="",
+                provider="",
+                prompt_tokens=0,
+                completion_tokens=0,
+                confidence_score=confidence_result.score,
+            )
+
+        confidence_level = "high" if confidence_gate == ConfidenceGate.HIGH else "hedged"
+        messages = build_prompt(query, ranked_chunks, confidence_level=confidence_level)
+
+        # Prepend last 5 turns (10 messages) of conversation history
+        if conversation_history:
+            messages = conversation_history[-10:] + messages
+
+        start = time.monotonic()
+        response = self._llm.complete(SYSTEM_PROMPT, messages, max_tokens=MAX_ANSWER_TOKENS)
+        latency_ms = (time.monotonic() - start) * 1000
+
+        answer, hallucinated = self._check_citations(response.content, len(ranked_chunks))
+        if hallucinated:
+            answer = (
+                "WARNING: The following answer contained hallucinated citations "
+                f"([Doc {', '.join(str(n) for n in hallucinated)}]) that were removed.\n\n"
+                + answer
+            )
+
+        citations = sorted(
+            {int(m) for m in _CITATION_RE.findall(answer)} - set(hallucinated)
+        )
+
+        return GenerationResult(
+            answer=answer,
+            citations=citations,
+            evidence_quality=confidence_gate.value,
+            model_used=response.model,
+            provider=self._llm.provider,
+            prompt_tokens=response.input_tokens,
+            completion_tokens=response.output_tokens,
+            confidence_score=confidence_result.score,
+            hallucinated_citations=hallucinated,
+            latency_ms=latency_ms,
+        )
+
+    @staticmethod
+    def _check_citations(answer: str, num_docs: int) -> tuple[str, list[int]]:
+        """Strip citations referencing non-existent docs; return (cleaned_answer, hallucinated_list)."""
+        hallucinated: list[int] = []
+        for m in _CITATION_RE.finditer(answer):
+            n = int(m.group(1))
+            if n < 1 or n > num_docs:
+                if n not in hallucinated:
+                    hallucinated.append(n)
+
+        if not hallucinated:
+            return answer, []
+
+        cleaned = answer
+        for n in sorted(hallucinated):
+            cleaned = cleaned.replace(f"[Doc {n}]", "")
+        return cleaned, sorted(hallucinated)

@@ -1,0 +1,261 @@
+What was implemented (4 source files + 1 test file; 1 new file created)
+========================================================================
+
+Session goal: Implement the full generation layer with hallucination mitigation,
+confidence gating, and a provider-agnostic LLM client, with a complete unit
+test suite covering all new modules.
+
+─────────────────────────────────────────────────────────────────────────────
+FILES CHANGED
+─────────────────────────────────────────────────────────────────────────────
+
+Source files (fully implemented, replacing stubs):
+  1.  src/generation/confidence.py
+  2.  src/generation/prompts.py
+  3.  src/generation/generator.py
+
+New source file:
+  4.  src/generation/llm_client.py        (did not previously exist)
+
+Test file (fully implemented, replacing NotImplementedError stubs):
+  5.  tests/unit/test_confidence_gating.py
+
+─────────────────────────────────────────────────────────────────────────────
+src/generation/confidence.py
+─────────────────────────────────────────────────────────────────────────────
+
+Confidence gating: computes a scalar score in [0, 1] from retrieval signals
+and maps it to one of four response postures.
+
+Key types:
+  ConfidenceGate (str, Enum)
+    HIGH     = "high"       — answer normally
+    HEDGED   = "hedged"     — prepend hedging prefix
+    CAVEATED = "caveated"   — answer with strong caveat + consult instruction
+    REFUSED  = "refused"    — hard refusal, LLM not called
+
+  ConfidenceResult (dataclass)
+    score:     float in [0, 1]
+    sufficient: bool  (score >= CONFIDENCE_LOW = 0.45)
+    reason:    str    semicolon-joined list of active adjustments, or "nominal"
+
+Public functions:
+  compute_confidence(chunks, query_cancer_types=None) -> ConfidenceResult
+    Base score = mean relevance_score of top-3 chunks.
+    Four adjustments (applied additively, result clamped to [0, 1]):
+      +0.1  evidence_boost        — any chunk has evidence_level <= 2 (RCT / meta-analysis)
+      -0.1  evidence_penalty      — all chunks have evidence_level >= 5 (review / unknown)
+      -0.1  single_paper_penalty  — multiple chunks but only 1 distinct pmcid
+      -0.05 spread_penalty        — std(all relevance scores) > 0.3
+      -0.1  topic_mismatch_penalty— no chunk cancer_type overlaps query_cancer_types
+
+  gate(score) -> ConfidenceGate
+    score >= 0.75 → HIGH
+    score >= 0.45 → HEDGED
+    score >= 0.20 → CAVEATED
+    score <  0.20 → REFUSED
+    (Thresholds from config.constants: CONFIDENCE_HIGH, CONFIDENCE_LOW, CONFIDENCE_REFUSE)
+
+  confidence_to_metadata(result) -> dict
+    Returns {"score", "gate", "sufficient", "reason"} for audit logging.
+
+─────────────────────────────────────────────────────────────────────────────
+src/generation/prompts.py
+─────────────────────────────────────────────────────────────────────────────
+
+All prompt templates for the generation layer, versioned in one place.
+
+String constants:
+  SYSTEM_PROMPT
+    Role definition (urological oncology research summarisation only), scope
+    constraints (no diagnosis / treatment decisions), citation rules ([Doc N]
+    mandatory for every factual claim, no fabrication), and a mandatory 4-section
+    output format: CLINICAL EVIDENCE SUMMARY / EVIDENCE QUALITY / SOURCES /
+    LIMITATIONS.  Ends with MEDICAL_DISCLAIMER from config.constants.
+
+  USER_PROMPT_TEMPLATE
+    Slots: {context_block}, {question}.
+    Instructs the model to cite every document used as [Doc N].
+
+  HEDGED_ANSWER_PREFIX
+    Prepended to the user turn when confidence_level != "high".
+    Signals limited / low-quality evidence to the reader.
+
+  LOW_CONFIDENCE_REFUSAL
+    Complete refusal text returned directly (LLM not called) when
+    confidence gate == REFUSED.
+
+  QUERY_REWRITE_PROMPT
+    Slots: {history}, {question}.
+    Used by ConversationMemory to expand follow-up questions into standalone
+    queries from prior turn context.
+
+Public functions:
+  format_context_block(chunks, max_chars=8000) -> str
+    Formats chunks as numbered [Doc N] blocks:
+      "[Doc N] | <title> | <year> | <section> | <study_design>\n<text>"
+    Truncates (with "…") when cumulative length would exceed max_chars.
+    Skips blocks entirely if fewer than 100 characters remain.
+
+  build_prompt(question, chunks, max_context_chars=8000, confidence_level="high")
+    -> list[dict]
+    Calls format_context_block, fills USER_PROMPT_TEMPLATE, prepends
+    HEDGED_ANSWER_PREFIX when confidence_level != "high".
+    Returns a messages list ready for LLMClient.complete().
+
+─────────────────────────────────────────────────────────────────────────────
+src/generation/llm_client.py  (NEW)
+─────────────────────────────────────────────────────────────────────────────
+
+Provider-agnostic LLM client hiding Anthropic and OpenAI SDK differences.
+
+Key types:
+  ConfigurationError(Exception)
+    Raised by LLMClient.__init__ when provider is not "anthropic" or "openai".
+
+  LLMResponse (dataclass)
+    content:       str   — generated text
+    input_tokens:  int
+    output_tokens: int
+    model:         str
+
+  LLMClient(provider, model, api_key="")
+    Constructor lazily imports the relevant SDK (anthropic / openai) inside
+    __init__, enabling mock patching in tests without importing at module level.
+    api_key passed directly rather than read from env so tests can inject a
+    dummy key without mutating os.environ.
+
+    Properties: provider, model (read-only).
+
+    complete(system, messages, max_tokens=800) -> LLMResponse
+      Anthropic backend:
+        Calls client.messages.create(system=..., messages=..., ...)
+        Maps resp.content[0].text, resp.usage.input_tokens / output_tokens.
+      OpenAI backend:
+        Prepends {"role": "system", "content": system} to messages.
+        Calls client.chat.completions.create(...)
+        Maps resp.choices[0].message.content, resp.usage.prompt_tokens /
+        completion_tokens.
+
+─────────────────────────────────────────────────────────────────────────────
+src/generation/generator.py
+─────────────────────────────────────────────────────────────────────────────
+
+End-to-end generation with hallucination mitigation and confidence gating.
+
+Key types:
+  GenerationResult (dataclass)
+    answer:                str
+    citations:             list[int]   — valid [Doc N] numbers found in answer
+    evidence_quality:      str         — ConfidenceGate value ("high" / "hedged" / ...)
+    model_used:            str
+    provider:              str
+    prompt_tokens:         int
+    completion_tokens:     int
+    confidence_score:      float       — scalar from compute_confidence
+    hallucinated_citations: list[int]  — doc numbers stripped from answer
+    latency_ms:            float
+
+  ClinicalGenerator(llm_client=None)
+    Constructed once at startup; llm_client=None → passthrough (useful for tests
+    that only want to exercise confidence gating without an LLM call).
+
+Pipeline in generate(query, ranked_chunks, conversation_history=None):
+  1. compute_confidence(ranked_chunks) → ConfidenceResult
+  2. gate(score) → ConfidenceGate
+     If REFUSED → return GenerationResult with LOW_CONFIDENCE_REFUSAL immediately
+     (LLM not called).
+  3. build_prompt(query, chunks, confidence_level=...) → messages
+  4. Prepend last 10 messages (5 turns) from conversation_history if provided.
+  5. llm_client.complete(SYSTEM_PROMPT, messages, max_tokens=MAX_ANSWER_TOKENS)
+  6. _check_citations(answer, num_docs) → (cleaned_answer, hallucinated_list)
+     Strips [Doc N] where N < 1 or N > len(ranked_chunks).
+     Prepends WARNING message naming stripped citation numbers.
+  7. Parse surviving [Doc N] from cleaned answer → citations list.
+
+_check_citations(answer, num_docs) -> tuple[str, list[int]]  (static method)
+  Regex: r"\[Doc (\d+)\]"
+  Collects all out-of-range N values, replaces "[Doc N]" with "" in the answer,
+  returns (cleaned_answer, sorted_hallucinated_list).
+
+─────────────────────────────────────────────────────────────────────────────
+tests/unit/test_confidence_gating.py  (16 tests, all passing)
+─────────────────────────────────────────────────────────────────────────────
+
+TestGateDecisions        (4 tests)
+  REFUSED below 0.2. CAVEATED in [0.2, 0.45). HEDGED in [0.45, 0.75).
+  HIGH at or above 0.75.
+
+TestComputeConfidence    (5 tests)
+  Perfect scores (1.0, evidence_level=1, diverse pmcids) → score >= 0.75,
+  sufficient=True.
+  Zero scores → score < 0.45, sufficient=False.
+  Single paper (all same pmcid) → lower score than diverse sources.
+  Topic mismatch (kidney chunks, prostate query) → lower score than matching.
+  High spread ([0.7,0.7,0.7,0.0,0.0], std≈0.34>0.3) → lower score than
+  uniform [0.7,0.7,0.7,0.7,0.7].
+
+TestMetadata             (1 test)
+  confidence_to_metadata returns dict with all four keys:
+  score, gate, sufficient, reason.
+
+TestLLMClient            (3 tests)
+  Unknown provider → ConfigurationError.
+  Anthropic provider: mocker.patch("anthropic.Anthropic") → complete() maps
+    content[0].text and usage.input_tokens / output_tokens correctly.
+  OpenAI provider: mocker.patch("openai.OpenAI") → complete() maps
+    choices[0].message.content and usage.prompt_tokens / completion_tokens.
+
+TestClinicalGenerator    (3 tests)
+  Hallucinated citation [Doc 9] in 3-doc corpus → hallucinated_citations=[9],
+  "WARNING" in answer.
+  Valid citations [Doc 1], [Doc 2] in 3-doc corpus → hallucinated_citations=[],
+  no WARNING, both appear in citations list.
+  Zero-score chunks → confidence gate == REFUSED → llm.complete not called,
+  answer == LOW_CONFIDENCE_REFUSAL.
+
+─────────────────────────────────────────────────────────────────────────────
+TEST RESULTS
+─────────────────────────────────────────────────────────────────────────────
+
+  pytest tests/unit/ (excluding pre-existing stubs):
+    93 passed, 8 failed (all failures are pre-existing NotImplementedError
+    stubs in test_metadata_extraction.py — not written this session)
+
+  pytest tests/integration/:
+    19 passed, 10 failed (all failures are pre-existing NotImplementedError
+    stubs in test_generation_pipeline.py — not written this session)
+
+  New passing tests added this session: 16 (all in test_confidence_gating.py)
+  Total cumulative passing tests: 112
+
+─────────────────────────────────────────────────────────────────────────────
+WHAT REMAINS (stub files not yet implemented)
+─────────────────────────────────────────────────────────────────────────────
+
+src/ingestion/
+  fetch.py       — PMC API fetching
+  embed.py       — compute dense + sparse vectors, upsert via QdrantStore
+  pipeline.py    — end-to-end ingestion orchestration
+
+src/evaluation/
+  judges.py, golden_set.py, runner.py
+
+src/observability/
+  logging.py, tracing.py, audit.py
+
+src/api/
+  main.py, routes/query.py, routes/health.py, routes/eval.py,
+  middleware/auth.py, middleware/rate_limit.py
+
+src/db/
+  document_store.py, models.py
+
+tests/unit/
+  test_metadata_extraction.py  — stub (NotImplementedError)
+
+tests/integration/
+  test_generation_pipeline.py  — stub (NotImplementedError)
+
+tests/eval/
+  test_golden_set.py           — stub (NotImplementedError)

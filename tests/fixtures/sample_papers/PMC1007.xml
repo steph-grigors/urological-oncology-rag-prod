@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>BJU International</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001007</article-id>
+      <article-id pub-id-type="pmc">1007</article-id>
+      <article-id pub-id-type="doi">10.1111/bju.15000</article-id>
+      <title-group>
+        <article-title>Cisplatin Eligibility and Outcomes in Metastatic Urothelial Carcinoma: A Prospective Cohort Study</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>Galsky</surname><given-names>Matthew D</given-names></name>
+        </contrib>
+        <contrib contrib-type="author">
+          <name><surname>Sfakianos</surname><given-names>John P</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2019</year>
+      </pub-date>
+      <abstract>
+        <p>Background: Many patients with metastatic urothelial carcinoma of the bladder are ineligible for cisplatin-based chemotherapy. We characterised the proportion of patients who are cisplatin-ineligible and compared outcomes between cisplatin-eligible and cisplatin-ineligible groups receiving gemcitabine plus carboplatin.</p>
+        <p>Methods: Prospective cohort study of 680 patients with metastatic urothelial carcinoma from 12 academic centres. Cisplatin eligibility was defined using standardised criteria including creatinine clearance, hearing, and performance status.</p>
+        <p>Results: Forty-two per cent of patients were cisplatin-ineligible. Cisplatin-eligible patients receiving gemcitabine-cisplatin had significantly better overall survival than cisplatin-ineligible patients receiving gemcitabine-carboplatin (median 16.3 vs 11.4 months).</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Urothelial carcinoma of the bladder is frequently diagnosed at an advanced stage in elderly patients with significant comorbidities. Cisplatin-based combination chemotherapy (gemcitabine plus cisplatin) is the preferred first-line regimen for metastatic disease in patients with adequate renal function and performance status. However, a substantial proportion of patients with bladder cancer are ineligible for cisplatin due to renal insufficiency, hearing loss, peripheral neuropathy, or poor performance status.</p>
+    </sec>
+    <sec>
+      <title>Methods</title>
+      <p>This prospective observational cohort enrolled consecutive patients with locally advanced or metastatic urothelial carcinoma commencing first-line chemotherapy between January 2015 and December 2018. Cisplatin eligibility was assessed using the Galsky criteria: creatinine clearance greater than or equal to 60 mL/min, ECOG performance status 0-1, adequate hearing (grade 1 or less CTCAE), and peripheral neuropathy grade 1 or less. Patients were followed until death or last contact.</p>
+    </sec>
+    <sec>
+      <title>Results</title>
+      <p>Of 680 evaluable patients, 286 (42%) were cisplatin-ineligible. The most common reasons for ineligibility were impaired renal function (58%), poor performance status (31%), and hearing loss (22%). Among cisplatin-eligible patients receiving gemcitabine-cisplatin, median overall survival was 16.3 months (95% CI 14.8-17.9) versus 11.4 months (95% CI 10.1-12.8) for cisplatin-ineligible patients receiving gemcitabine-carboplatin (HR 1.58; 95% CI 1.27-1.97).</p>
+      <p>Objective response rates were 58% for cisplatin-eligible and 42% for cisplatin-ineligible patients. Grade 3 or higher haematological toxicity was more frequent with cisplatin-based therapy (42% vs 38%) but non-haematological toxicity profiles were similar.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>Cisplatin ineligibility affects a substantial proportion of patients with metastatic bladder cancer and is associated with inferior outcomes. Development of effective carboplatin-substituted and non-platinum regimens for cisplatin-ineligible patients remains a priority.</p>
+    </sec>
+  </body>
+</article>

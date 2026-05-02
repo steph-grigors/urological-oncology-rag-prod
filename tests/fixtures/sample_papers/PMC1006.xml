@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>New England Journal of Medicine</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001006</article-id>
+      <article-id pub-id-type="pmc">1006</article-id>
+      <article-id pub-id-type="doi">10.1056/NEJMoa2200006</article-id>
+      <title-group>
+        <article-title>Pembrolizumab plus Chemotherapy versus Chemotherapy Alone in Advanced Urothelial Carcinoma: KEYNOTE-361 Phase III Trial</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>Bellmunt</surname><given-names>Joaquim</given-names></name>
+        </contrib>
+        <contrib contrib-type="author">
+          <name><surname>Hussain</surname><given-names>Maha</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2022</year>
+      </pub-date>
+      <abstract>
+        <p>Background: We evaluated pembrolizumab combined with platinum-based chemotherapy as first-line treatment for advanced or metastatic urothelial carcinoma (bladder cancer) in a phase III randomised trial.</p>
+        <p>Methods: KEYNOTE-361 enrolled 1010 patients with previously untreated locally advanced or metastatic urothelial carcinoma. Patients were randomised to pembrolizumab plus chemotherapy (gemcitabine plus cisplatin or gemcitabine plus carboplatin) versus chemotherapy alone. Primary endpoints were overall survival and progression-free survival.</p>
+        <p>Results: Pembrolizumab plus chemotherapy did not significantly improve overall survival (HR 0.86; 95% CI 0.72-1.02; P equals 0.0407) or progression-free survival (HR 0.78; 95% CI 0.65-0.93; P equals 0.0033) in the total population by pre-specified criteria.</p>
+        <p>Conclusions: The combination did not meet pre-specified significance thresholds for overall survival. Ongoing analyses in PD-L1 enriched populations are underway.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Urothelial carcinoma of the bladder is the most common urological malignancy worldwide. For patients with locally advanced or metastatic disease, platinum-based chemotherapy with gemcitabine plus cisplatin has been the standard first-line treatment for decades. Checkpoint inhibitors targeting PD-1 and PD-L1 have demonstrated activity as second-line therapy.</p>
+      <p>Pembrolizumab, an anti-PD-1 antibody, significantly improved overall survival versus chemotherapy as second-line treatment for advanced urothelial carcinoma in the KEYNOTE-045 trial. The hypothesis for KEYNOTE-361 was that first-line combination of pembrolizumab with chemotherapy would improve outcomes versus chemotherapy alone.</p>
+    </sec>
+    <sec>
+      <title>Methods</title>
+      <p>KEYNOTE-361 was a global, open-label, randomised phase III trial. Patients with locally advanced or metastatic urothelial carcinoma who had not received prior systemic therapy for advanced disease were enrolled. Patients were stratified by PD-L1 expression, performance status, and planned chemotherapy regimen (cisplatin-eligible vs cisplatin-ineligible).</p>
+      <p>Eligible patients received pembrolizumab 200 mg intravenously every 3 weeks plus investigator's choice of gemcitabine 1000 mg/m2 plus cisplatin 70 mg/m2 or gemcitabine 1000 mg/m2 plus carboplatin AUC 4.5. Treatment continued until progressive disease, unacceptable toxicity, or 35 cycles of pembrolizumab.</p>
+    </sec>
+    <sec>
+      <title>Results</title>
+      <p>In the total population, pembrolizumab plus chemotherapy did not meet the pre-specified significance threshold for overall survival improvement (HR 0.86; 95% CI 0.72 to 1.02; P equals 0.0407 against pre-specified threshold of P equals 0.0142). Progression-free survival was significantly improved per statistical hierarchy (HR 0.78; 95% CI 0.65 to 0.93).</p>
+      <p>In the PD-L1 positive (CPS greater than or equal to 10) subgroup, a trend favouring the combination was observed for overall survival (HR 0.76; 95% CI 0.60 to 0.98) though this was not formally tested. Grade 3 or higher adverse events occurred in 72% of patients in the combination group versus 68% in the chemotherapy group.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>Pembrolizumab plus platinum-based chemotherapy did not meet pre-specified criteria for overall survival improvement in advanced urothelial carcinoma in the overall population. The role of immunotherapy-chemotherapy combinations in bladder cancer continues to evolve with ongoing biomarker-selected trials.</p>
+    </sec>
+  </body>
+</article>

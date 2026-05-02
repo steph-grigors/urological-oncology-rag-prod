@@ -1,47 +1,110 @@
 """
 All prompt templates for the generation layer.
-
-Keeping prompts in one module makes them easy to version, A/B test, and
-audit without touching generation logic.
-
-Prompt design principles for clinical decision support:
-    - System prompt explicitly states the assistant's scope (urological
-      oncology research summarisation) and hard limits (no diagnosis,
-      no treatment decisions).
-    - Source citation is mandatory: every factual claim must cite [Doc N].
-    - Uncertainty must be expressed when evidence is conflicting or sparse.
-    - MEDICAL_DISCLAIMER (from constants.py) is appended to every answer.
-    - Temperature is kept at 0.1 to minimise hallucination.
-
-Templates (to be implemented as string constants or Jinja2 templates):
-    SYSTEM_PROMPT
-        Role definition, scope constraints, citation instruction,
-        clinical caveat, and output format specification.
-
-    USER_PROMPT_TEMPLATE
-        Slots: {context_block}, {question}
-        Formats retrieved chunks as [Doc N] blocks with title/section/year.
-
-    HEDGED_ANSWER_PREFIX
-        Prepended when retrieval_confidence is between CONFIDENCE_LOW and
-        CONFIDENCE_HIGH.  Signals to the reader that evidence is limited.
-
-    LOW_CONFIDENCE_REFUSAL
-        Full refusal text returned when retrieval_confidence < CONFIDENCE_REFUSE.
-
-    QUERY_REWRITE_PROMPT
-        Used by ConversationMemory to expand follow-up questions into
-        standalone queries using prior turn context.
-
-Public API (to be implemented):
-    build_prompt(
-        question: str,
-        chunks: list[SearchResult],
-        max_context_chars: int,
-        confidence_level: Literal["high", "hedged"],
-    ) -> list[dict]
-        Return the messages list ready for the LLM client.
-
-    format_context_block(chunks: list[SearchResult], max_chars: int) -> str
-        Format chunks as numbered [Doc N] blocks, truncating to max_chars.
 """
+
+from __future__ import annotations
+
+from config.constants import MEDICAL_DISCLAIMER
+
+SYSTEM_PROMPT = (
+    "You are a clinical evidence summarization assistant specializing in urological oncology.\n\n"
+    "Your role is to synthesize evidence from peer-reviewed literature for qualified healthcare "
+    "professionals. You do not provide personalized medical advice, diagnoses, or treatment decisions.\n\n"
+    "SCOPE: Only answer questions about urological oncology (prostate, bladder, kidney, "
+    "testicular cancer). If a question is outside this scope, say so clearly.\n\n"
+    "CITATION RULES:\n"
+    "- Every factual claim must be supported by an inline [Doc N] citation.\n"
+    "- Use only the documents provided — never fabricate or infer sources.\n"
+    "- If the context does not contain sufficient information, state that explicitly.\n\n"
+    "OUTPUT FORMAT (always use these four sections):\n\n"
+    "## CLINICAL EVIDENCE SUMMARY\n"
+    "[Main answer with [Doc N] inline citations for each factual claim]\n\n"
+    "## EVIDENCE QUALITY\n"
+    "[Brief assessment: study designs represented, sample sizes, consistency of findings]\n\n"
+    "## SOURCES\n"
+    "[Doc 1]: <title> (<year>) — <key finding or relevance>\n"
+    "[Doc 2]: ...\n\n"
+    "## LIMITATIONS\n"
+    "[Evidence gaps, conflicting results, generalisability concerns, or reasons for caution]"
+    + MEDICAL_DISCLAIMER
+)
+
+USER_PROMPT_TEMPLATE = """{context_block}
+
+---
+
+**Clinical question:** {question}
+
+Please summarise the evidence above to answer this question. Cite each document you use as [Doc N].
+"""
+
+HEDGED_ANSWER_PREFIX = (
+    "**Note:** The available evidence for this question is limited or of lower quality. "
+    "Interpret the following summary with caution and consider consulting primary literature "
+    "or current clinical guidelines.\n\n"
+)
+
+LOW_CONFIDENCE_REFUSAL = (
+    "I cannot provide a reliable evidence summary for this question. "
+    "The retrieved literature does not contain sufficient relevant information to answer confidently. "
+    "Please consult current clinical guidelines (e.g. EAU, NCCN), recent systematic reviews, "
+    "or a specialist in urological oncology."
+)
+
+QUERY_REWRITE_PROMPT = (
+    "Given the conversation history below and a follow-up question, rewrite the follow-up as a "
+    "fully self-contained standalone question that captures all necessary context from the history.\n\n"
+    "CONVERSATION HISTORY:\n"
+    "{history}\n\n"
+    "FOLLOW-UP QUESTION: {question}\n\n"
+    "STANDALONE QUESTION:"
+)
+
+
+def format_context_block(chunks: list, max_chars: int = 8000) -> str:
+    """Format a list of chunks into numbered [Doc N] blocks, truncated to max_chars."""
+    blocks: list[str] = []
+    total = 0
+
+    for i, chunk in enumerate(chunks, 1):
+        meta = chunk.metadata if hasattr(chunk, "metadata") else {}
+        title = meta.get("title", "Unknown title")
+        year = meta.get("year", "")
+        section = meta.get("section", "")
+        design = meta.get("study_design", "")
+
+        header_parts = [f"[Doc {i}]", title]
+        if year:
+            header_parts.append(str(year))
+        if section:
+            header_parts.append(section)
+        if design:
+            header_parts.append(design)
+
+        text = chunk.text if hasattr(chunk, "text") else str(chunk)
+        block = " | ".join(header_parts) + "\n" + text
+
+        if total + len(block) + 2 > max_chars:
+            remaining = max_chars - total - 2
+            if remaining > 100:
+                blocks.append(block[:remaining] + "…")
+            break
+
+        blocks.append(block)
+        total += len(block) + 2  # +2 for the "\n\n" separator
+
+    return "\n\n".join(blocks)
+
+
+def build_prompt(
+    question: str,
+    chunks: list,
+    max_context_chars: int = 8000,
+    confidence_level: str = "high",
+) -> list[dict]:
+    """Return the user-turn messages list ready for LLMClient.complete()."""
+    context = format_context_block(chunks, max_context_chars)
+    user_content = USER_PROMPT_TEMPLATE.format(context_block=context, question=question)
+    if confidence_level != "high":
+        user_content = HEDGED_ANSWER_PREFIX + user_content
+    return [{"role": "user", "content": user_content}]

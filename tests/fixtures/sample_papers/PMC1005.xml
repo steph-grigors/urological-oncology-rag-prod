@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>Journal of Clinical Oncology</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001005</article-id>
+      <article-id pub-id-type="pmc">1005</article-id>
+      <article-id pub-id-type="doi">10.1200/JCO.2021.39.1.001</article-id>
+      <title-group>
+        <article-title>Abiraterone Acetate in Metastatic Castration-Sensitive Prostate Cancer: Real-World Cohort Study</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>James</surname><given-names>Nicholas D</given-names></name>
+        </contrib>
+        <contrib contrib-type="author">
+          <name><surname>Clarke</surname><given-names>Noel W</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2021</year>
+      </pub-date>
+      <abstract>
+        <p>Background: We evaluated real-world outcomes of abiraterone acetate plus prednisone combined with androgen deprivation therapy in patients with metastatic castration-sensitive prostate cancer (mCSPC) outside of randomised trial settings.</p>
+        <p>Methods: Retrospective cohort study of 2,340 patients with mCSPC receiving abiraterone from January 2018 to December 2020 across 45 UK urology centres. Primary outcomes were time to castration resistance and overall survival.</p>
+        <p>Results: Median time to castration resistance was 38.4 months. Median overall survival was not reached at 3-year follow-up (3-year OS rate 78%). Outcomes were comparable to those in the LATITUDE and STAMPEDE randomised trials.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Abiraterone acetate plus prednisone (AAP) combined with androgen deprivation therapy (ADT) is a standard treatment for metastatic castration-sensitive prostate cancer (mCSPC) based on phase III evidence from the LATITUDE and STAMPEDE trials. Real-world data are needed to evaluate outcomes in broader populations including those with performance status limitations or comorbidities that may have led to exclusion from trials.</p>
+    </sec>
+    <sec>
+      <title>Methods</title>
+      <p>This retrospective cohort study included consecutive patients with de novo or relapsed mCSPC commencing AAP between January 2018 and December 2020 at 45 urology and oncology centres in the UK. Data were extracted from electronic health records. The primary outcome was time to castration resistance defined as PSA progression per PCWG3 criteria with castrate testosterone levels. Secondary outcomes included radiographic progression-free survival and overall survival.</p>
+    </sec>
+    <sec>
+      <title>Results</title>
+      <p>Of 2,340 patients included, 71% had de novo metastatic disease and 29% had relapsed after local therapy. Median time to castration resistance was 38.4 months (95% CI 35.8-41.2). The 3-year overall survival rate was 78.2%. In multivariate analysis, Gleason score 8-10 (HR 1.68), high-volume disease (HR 1.52), and poor ECOG performance status (HR 2.31) were significantly associated with shorter overall survival.</p>
+      <p>Abiraterone dose reduction was required in 12% of patients and treatment discontinuation due to toxicity occurred in 9%. Mineralocorticoid excess events including hypertension (24%) and fluid retention (11%) were the most frequent toxicities requiring clinical management.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>Real-world outcomes for abiraterone in mCSPC are comparable to those reported in phase III trials, supporting the effectiveness of this treatment approach in routine clinical practice. Patients with high-volume disease and poor performance status require careful monitoring and dose management.</p>
+    </sec>
+  </body>
+</article>

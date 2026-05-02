@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>Annals of Oncology</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001010</article-id>
+      <article-id pub-id-type="pmc">1010</article-id>
+      <article-id pub-id-type="doi">10.1016/j.annonc.2021.05.010</article-id>
+      <title-group>
+        <article-title>BEP versus EP Chemotherapy in Good-Risk Metastatic Testicular Germ Cell Tumours: A Phase III Randomised Trial</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>Fizazi</surname><given-names>Karim</given-names></name>
+        </contrib>
+        <contrib contrib-type="author">
+          <name><surname>Horwich</surname><given-names>Alan</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2021</year>
+      </pub-date>
+      <abstract>
+        <p>Background: BEP (bleomycin, etoposide, cisplatin) chemotherapy is standard treatment for metastatic testicular germ cell tumours. We evaluated whether EP (etoposide, cisplatin) without bleomycin is non-inferior to BEP in good-risk disease, potentially avoiding bleomycin-related pulmonary toxicity.</p>
+        <p>Methods: Phase III randomised non-inferiority trial enrolling 812 patients with good-risk metastatic testicular germ cell tumours. Patients were randomised to 4 cycles of BEP or 4 cycles of EP. Primary endpoint was 5-year progression-free survival.</p>
+        <p>Results: BEP was not inferior to EP: 5-year progression-free survival was 90.4% for BEP versus 86.3% for EP (HR 1.42; 90% CI 1.02-1.97). The non-inferiority margin was not met, confirming BEP superiority. Bleomycin-related pulmonary toxicity occurred in 8% of BEP patients.</p>
+        <p>Conclusions: BEP remains the standard treatment for good-risk metastatic testicular germ cell tumours. The modest survival benefit over EP justifies the risk of bleomycin pulmonary toxicity in most patients.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Testicular germ cell tumours (GCTs) are the most common solid malignancy in males aged 15-35 years and are among the most curable of all cancers. Approximately 70% of metastatic GCTs are classified as good-risk by IGCCCG criteria and achieve complete remission with cisplatin-based combination chemotherapy. BEP (bleomycin 30 units weekly, etoposide 100 mg/m2 days 1-5, and cisplatin 20 mg/m2 days 1-5, every 21 days) has been the standard regimen since landmark trials in the 1980s.</p>
+      <p>Bleomycin pulmonary toxicity remains a significant concern, occurring in up to 10% of patients and occasionally causing fatal pulmonary fibrosis. Removing bleomycin from the BEP regimen (EP chemotherapy) would reduce this toxicity, but previous studies have suggested that bleomycin contributes to efficacy. This trial aimed to formally establish whether EP is non-inferior to BEP in good-risk disease.</p>
+    </sec>
+    <sec>
+      <title>Methods</title>
+      <p>Patients aged 18-65 years with histologically confirmed metastatic testicular seminoma or non-seminomatous GCT classified as good-risk per IGCCCG 1997 criteria were eligible. Patients were randomly assigned 1:1 to receive 4 cycles of BEP (bleomycin 30 units on days 1, 8, 15; etoposide 100 mg/m2 days 1-5; cisplatin 20 mg/m2 days 1-5) or 4 cycles of EP (etoposide 100 mg/m2 days 1-5; cisplatin 20 mg/m2 days 1-5). Primary endpoint was 5-year progression-free survival with a non-inferiority margin of HR 1.25.</p>
+    </sec>
+    <sec>
+      <title>Results</title>
+      <p>Of 812 randomised patients, 406 received BEP and 406 received EP. Five-year progression-free survival was 90.4% with BEP versus 86.3% with EP (HR for EP vs BEP 1.42; 90% CI 1.02 to 1.97), which crossed the pre-specified non-inferiority margin of 1.25. The trial therefore concluded that EP is inferior to BEP for good-risk metastatic GCT.</p>
+      <p>Grade 3 or higher bleomycin-related pulmonary toxicity occurred in 8.1% of BEP patients, resulting in permanent bleomycin discontinuation in 4.7%. There were 2 treatment-related deaths in the BEP arm (both pulmonary toxicity) and 0 in the EP arm. Haematological toxicities were similar between arms. Complete response rates were 93% for BEP and 89% for EP.</p>
+    </sec>
+    <sec>
+      <title>Discussion</title>
+      <p>This trial confirms that BEP chemotherapy remains superior to EP for good-risk metastatic testicular germ cell tumours despite the absence of bleomycin pulmonary toxicity risk with EP. The absolute difference in 5-year progression-free survival of approximately 4% with 812 patients favours retention of bleomycin in most patients who can safely receive it.</p>
+      <p>Careful patient selection for bleomycin omission should be reserved for patients at high risk of pulmonary toxicity, including those with pre-existing lung disease, prior thoracic radiation, or poor pulmonary function. Pulmonary function testing should be performed before each bleomycin dose and the drug discontinued at the first sign of pulmonary toxicity.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>BEP chemotherapy is superior to EP and should remain the standard of care for good-risk metastatic testicular germ cell tumours in patients who can safely receive bleomycin. Risk-adapted approaches to bleomycin omission require further prospective evaluation.</p>
+    </sec>
+  </body>
+</article>

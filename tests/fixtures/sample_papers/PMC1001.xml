@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>New England Journal of Medicine</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001001</article-id>
+      <article-id pub-id-type="pmc">1001</article-id>
+      <article-id pub-id-type="doi">10.1056/NEJMoa2100001</article-id>
+      <title-group>
+        <article-title>Enzalutamide in Metastatic Castration-Resistant Prostate Cancer: A Randomised Controlled Trial</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>Armstrong</surname><given-names>Andrew J</given-names></name>
+        </contrib>
+        <contrib contrib-type="author">
+          <name><surname>Beer</surname><given-names>Tomasz M</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2021</year>
+      </pub-date>
+      <abstract>
+        <p>Background: Enzalutamide is an androgen receptor signalling inhibitor approved for metastatic castration-resistant prostate cancer (mCRPC). We conducted a phase III randomised controlled trial comparing enzalutamide plus standard of care versus placebo plus standard of care in patients with mCRPC who had not received prior chemotherapy.</p>
+        <p>Methods: We randomly assigned 1199 patients in a 2:1 ratio to receive oral enzalutamide 160 mg daily or placebo. The primary endpoint was radiographic progression-free survival. Secondary endpoints included overall survival and time to PSA progression.</p>
+        <p>Results: Enzalutamide significantly improved radiographic progression-free survival compared with placebo (median 36.6 vs 14.7 months; HR 0.29; 95% CI 0.24-0.35; P less than 0.001). Overall survival was also significantly improved (HR 0.73; 95% CI 0.61-0.87).</p>
+        <p>Conclusions: Enzalutamide significantly improves progression-free and overall survival in patients with mCRPC. The safety profile was consistent with prior reports.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Metastatic castration-resistant prostate cancer (mCRPC) remains a lethal disease despite advances in androgen deprivation therapy. Enzalutamide, a potent androgen receptor (AR) signalling inhibitor, competitively inhibits androgen binding to the AR, AR nuclear translocation, and AR-mediated DNA binding.</p>
+      <p>Prior phase III trials demonstrated significant survival benefits of enzalutamide in patients with mCRPC after docetaxel chemotherapy and in chemotherapy-naive patients. We sought to confirm these findings in a broader, multicentre population with extended follow-up.</p>
+    </sec>
+    <sec>
+      <title>Methods</title>
+      <p>This phase III randomised controlled trial enrolled 1199 patients with progressive mCRPC from 207 sites across 22 countries. Eligible patients had histologically confirmed prostate adenocarcinoma with castrate levels of testosterone less than 50 ng/dL. Patients were randomly assigned (2:1) to receive oral enzalutamide 160 mg once daily or matching placebo.</p>
+      <p>Randomisation was stratified by prior docetaxel use, baseline PSA, and Eastern Cooperative Oncology Group performance status. The primary endpoint was radiographic progression-free survival assessed by blinded central review. Overall survival was a key secondary endpoint.</p>
+    </sec>
+    <sec>
+      <title>Results</title>
+      <p>Enzalutamide significantly improved radiographic progression-free survival compared with placebo (median 36.6 months vs 14.7 months; hazard ratio 0.29; 95% confidence interval 0.24 to 0.35; P less than 0.001). The 12-month radiographic progression-free survival rate was 72.4% in the enzalutamide group versus 37.6% in the placebo group.</p>
+      <p>A significant improvement in overall survival was observed with enzalutamide (hazard ratio 0.73; 95% CI 0.61 to 0.87; P equals 0.0002). Median overall survival was 44.7 months with enzalutamide versus 33.3 months with placebo. PSA response (greater than 50% reduction) was achieved in 79.4% of enzalutamide-treated patients versus 22.8% of placebo patients.</p>
+      <p>The most common adverse events with enzalutamide were fatigue (36%), hypertension (14%), and hot flush (13%). Grade 3 or higher adverse events occurred in 42% of enzalutamide patients and 38% of placebo patients. Seizures occurred in 0.4% of enzalutamide-treated patients.</p>
+    </sec>
+    <sec>
+      <title>Discussion</title>
+      <p>This phase III trial confirms that enzalutamide significantly improves radiographic progression-free survival and overall survival in patients with mCRPC. These results are consistent with the PREVAIL trial and support enzalutamide as a standard-of-care option for this patient population.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>Enzalutamide significantly improves clinical outcomes compared with placebo in mCRPC. The treatment demonstrates a manageable safety profile with the most important risk being rare seizure events requiring patient counselling.</p>
+    </sec>
+  </body>
+</article>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>Journal of Clinical Oncology</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001009</article-id>
+      <article-id pub-id-type="pmc">1009</article-id>
+      <article-id pub-id-type="doi">10.1200/JCO.2022.40.6.560</article-id>
+      <title-group>
+        <article-title>Nivolumab plus Cabozantinib versus Sunitinib in Advanced Renal Cell Carcinoma: CheckMate 9ER Cohort Study Extension</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>Choueiri</surname><given-names>Toni K</given-names></name>
+        </contrib>
+        <contrib contrib-type="author">
+          <name><surname>Powles</surname><given-names>Thomas</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2022</year>
+      </pub-date>
+      <abstract>
+        <p>Background: We report extended follow-up from the CheckMate 9ER cohort comparing nivolumab plus cabozantinib versus sunitinib in previously untreated advanced renal cell carcinoma.</p>
+        <p>Methods: Prospective cohort analysis of 651 patients from the CheckMate 9ER trial with minimum 24-month follow-up. Primary outcomes were progression-free survival and overall survival.</p>
+        <p>Results: At 24-month minimum follow-up, nivolumab plus cabozantinib continued to demonstrate superior progression-free survival (median 16.6 vs 8.3 months; HR 0.56) and overall survival (HR 0.70) versus sunitinib. Benefits were observed across all IMDC risk groups.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Advanced renal cell carcinoma (RCC) has been transformed by the combination of immune checkpoint inhibitors with VEGF-targeted therapies. Nivolumab, an anti-PD-1 antibody, has demonstrated activity in RCC as monotherapy and in combination with ipilimumab and with cabozantinib. Cabozantinib inhibits VEGFR2, MET, and AXL, providing potential synergy with immunotherapy through modulation of the tumour microenvironment.</p>
+      <p>The CheckMate 9ER trial demonstrated that nivolumab plus cabozantinib significantly improved progression-free survival and overall survival compared with sunitinib as first-line therapy. Here we report extended follow-up data with a minimum of 24 months of observation.</p>
+    </sec>
+    <sec>
+      <title>Methods</title>
+      <p>CheckMate 9ER was a global, randomised, open-label phase III trial. Patients with previously untreated advanced clear-cell RCC were randomised 1:1 to nivolumab 240 mg intravenously every 2 weeks plus cabozantinib 40 mg orally once daily or sunitinib 50 mg orally once daily on a 4-weeks-on, 2-weeks-off schedule. Stratification factors included IMDC risk group, geographic region, and tumour PD-L1 expression. This report presents data from the extended follow-up cohort with minimum 24-month observation.</p>
+    </sec>
+    <sec>
+      <title>Results</title>
+      <p>With a minimum 24-month follow-up, nivolumab plus cabozantinib continued to demonstrate superior progression-free survival versus sunitinib (median 16.6 vs 8.3 months; HR 0.56; 95% CI 0.46 to 0.68). Overall survival significantly favoured the combination (HR 0.70; 95% CI 0.55 to 0.90). The objective response rate was 55.7% with nivolumab plus cabozantinib versus 28.4% with sunitinib. Complete responses were observed in 12.4% of combination patients versus 5.2% of sunitinib patients.</p>
+      <p>Benefits were consistent across IMDC risk subgroups including favourable-risk patients (PFS HR 0.63), intermediate and poor-risk patients (PFS HR 0.52), and PD-L1 positive and negative subgroups. Grade 3 or higher adverse events occurred in 61% of combination patients versus 51% of sunitinib patients. Treatment discontinuation due to adverse events was 19% for combination versus 17% for sunitinib.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>Extended follow-up confirms durable superiority of nivolumab plus cabozantinib over sunitinib across efficacy and patient-reported outcomes in advanced RCC. Nivolumab plus cabozantinib is an established first-line standard of care for this disease.</p>
+    </sec>
+  </body>
+</article>

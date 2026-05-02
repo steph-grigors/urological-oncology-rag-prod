@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>Lancet Oncology</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001002</article-id>
+      <article-id pub-id-type="pmc">1002</article-id>
+      <article-id pub-id-type="doi">10.1016/S1470-2045(21)00001-2</article-id>
+      <title-group>
+        <article-title>Enzalutamide Combined with Docetaxel versus Docetaxel Alone in Metastatic Hormone-Sensitive Prostate Cancer: Phase III RCT</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>Davis</surname><given-names>Ian D</given-names></name>
+        </contrib>
+        <contrib contrib-type="author">
+          <name><surname>Martin</surname><given-names>Alison J</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2022</year>
+      </pub-date>
+      <abstract>
+        <p>Background: We investigated whether combining enzalutamide with docetaxel improves outcomes compared with docetaxel alone in metastatic hormone-sensitive prostate cancer (mHSPC).</p>
+        <p>Methods: In this phase III randomised trial, 1,745 patients with mHSPC were randomly assigned to receive enzalutamide 160 mg daily plus docetaxel 75 mg/m2 every three weeks or docetaxel alone. The co-primary endpoints were progression-free survival and overall survival.</p>
+        <p>Results: Enzalutamide plus docetaxel significantly improved progression-free survival compared with docetaxel alone (HR 0.39; 95% CI 0.33-0.47; P less than 0.0001). Overall survival also favoured the combination (HR 0.65; 95% CI 0.53-0.79).</p>
+        <p>Conclusions: The combination of enzalutamide and docetaxel represents an effective triplet therapy approach for newly diagnosed mHSPC.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Metastatic hormone-sensitive prostate cancer (mHSPC) is a heterogeneous disease with variable outcomes. Androgen deprivation therapy (ADT) remains the backbone of treatment, but intensification strategies using next-generation hormonal agents or chemotherapy have demonstrated significant survival benefits.</p>
+      <p>Enzalutamide, a potent androgen receptor signalling inhibitor, has demonstrated efficacy in the mCRPC setting. Docetaxel chemotherapy remains a standard component of therapy for high-volume mHSPC. The combination of enzalutamide with docetaxel (triplet therapy) was hypothesised to produce additive or synergistic anti-tumour effects.</p>
+    </sec>
+    <sec>
+      <title>Methods</title>
+      <p>Patients with histologically confirmed metastatic prostate adenocarcinoma and no prior life-prolonging systemic therapy for metastatic disease were enrolled. All patients received continuous ADT. Patients were randomised 1:1 to enzalutamide 160 mg orally once daily with docetaxel (75 mg/m2 intravenously every 3 weeks for up to 6 cycles) or docetaxel alone.</p>
+      <p>Stratification factors included disease volume, prior local therapy, and planned docetaxel cycles. Co-primary endpoints were progression-free survival (PSA, radiographic, or clinical) and overall survival. Sample size was calculated to detect a hazard ratio of 0.74 for progression-free survival with 80% power.</p>
+    </sec>
+    <sec>
+      <title>Results</title>
+      <p>Enzalutamide plus docetaxel significantly improved progression-free survival versus docetaxel alone (median 34.2 months vs 20.8 months; HR 0.39; 95% CI 0.33 to 0.47; P less than 0.0001). The benefit was consistent across subgroups defined by disease volume and de novo versus relapsed status.</p>
+      <p>Overall survival was significantly improved with combination therapy (HR 0.65; 95% CI 0.53 to 0.79; P equals 0.00001). Median overall survival was not reached in the combination arm versus 45.0 months with docetaxel alone at 4-year follow-up.</p>
+      <p>Grade 3 or higher adverse events were more frequent with combination therapy (69% vs 52%), including febrile neutropenia (8% vs 5%), fatigue (8% vs 4%), and peripheral neuropathy (6% vs 5%). Enzalutamide-related adverse events including hypertension and hot flushes were also observed.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>Enzalutamide plus docetaxel triplet therapy significantly improves progression-free survival and overall survival compared with docetaxel alone in mHSPC, at the cost of increased toxicity. Patient selection based on fitness for chemotherapy and predicted response remains important.</p>
+    </sec>
+  </body>
+</article>

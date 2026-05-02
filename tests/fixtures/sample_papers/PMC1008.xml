@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>Nature Reviews Urology</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001008</article-id>
+      <article-id pub-id-type="pmc">1008</article-id>
+      <article-id pub-id-type="doi">10.1038/s41585-023-00800-8</article-id>
+      <title-group>
+        <article-title>Sunitinib in Metastatic Renal Cell Carcinoma: A Comprehensive Review of Efficacy, Safety and Resistance Mechanisms</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>Motzer</surname><given-names>Robert J</given-names></name>
+        </contrib>
+        <contrib contrib-type="author">
+          <name><surname>Escudier</surname><given-names>Bernard</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2023</year>
+      </pub-date>
+      <abstract>
+        <p>Sunitinib is a multitargeted tyrosine kinase inhibitor approved for first-line treatment of metastatic clear-cell renal cell carcinoma (ccRCC). Since its approval in 2006, sunitinib has been the benchmark comparator in multiple phase III trials of novel agents. This review summarises the clinical efficacy, safety, and mechanisms of primary and acquired resistance to sunitinib in metastatic RCC.</p>
+        <p>We review the pivotal phase III trial data demonstrating sunitinib superiority over interferon-alfa, real-world outcomes, biomarkers of response, and the biological basis of sunitinib resistance including VEGFR pathway bypass, tumour microenvironment remodelling, and HIF-1 alpha accumulation.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Renal cell carcinoma (RCC) accounts for approximately 3% of all adult malignancies. The clear-cell subtype (ccRCC) represents 75-80% of cases and is characterised by inactivation of the VHL tumour suppressor gene, leading to constitutive activation of the VEGF and mTOR pathways. Sunitinib malate (Sutent) is an oral multitargeted receptor tyrosine kinase inhibitor that potently inhibits VEGFR1, VEGFR2, VEGFR3, PDGFRalpha, PDGFRbeta, KIT, FLT3, and RET.</p>
+      <p>The pivotal phase III trial comparing sunitinib to interferon-alfa in treatment-naive metastatic ccRCC demonstrated a doubling of progression-free survival (11 vs 5 months) and established sunitinib as the global standard of care. Subsequent real-world analyses and long-term follow-up data have confirmed the durability of these benefits.</p>
+    </sec>
+    <sec>
+      <title>Clinical Efficacy</title>
+      <p>The landmark phase III trial by Motzer et al enrolled 750 patients with previously untreated metastatic ccRCC and randomised them to sunitinib 50 mg daily on a 4-weeks-on, 2-weeks-off schedule or interferon-alfa 9 MU three times weekly. Sunitinib significantly improved progression-free survival (median 11 vs 5 months; HR 0.42; P less than 0.001) and objective response rate (31% vs 6%). Overall survival favoured sunitinib (26.4 vs 21.8 months; HR 0.821; P equals 0.049) in a subsequent analysis.</p>
+      <p>Updated 5-year follow-up data demonstrated a median overall survival of 26.4 months and a 5-year survival rate of 20.9% with sunitinib. Long-term responders (greater than 18 months) were identified in approximately 20% of patients, suggesting a subset with durable disease control.</p>
+    </sec>
+    <sec>
+      <title>Resistance Mechanisms</title>
+      <p>Primary resistance to sunitinib occurs in approximately 20-30% of patients as defined by early radiographic progression. Acquired resistance develops in virtually all patients who initially respond. Mechanisms include VEGFR pathway bypass via FGF, AXL, and MET receptor upregulation, tumour microenvironment changes including increased myeloid-derived suppressor cells and regulatory T cells, and transcriptional adaptations involving HIF-1 alpha and autophagy pathways.</p>
+      <p>Understanding resistance mechanisms has informed rational combination strategies and next-generation VEGFR inhibitors. Cabozantinib, which also inhibits MET and AXL in addition to VEGFR2, has demonstrated superiority over sunitinib in patients with intermediate and poor IMDC risk disease in the CABOSUN trial.</p>
+    </sec>
+    <sec>
+      <title>Safety Profile</title>
+      <p>The most common sunitinib-associated adverse events are fatigue (63%), hypertension (30%), diarrhoea (53%), hand-foot skin reaction (29%), and hypothyroidism (24%). Grade 3 or higher adverse events occur in approximately 38% of patients. Dose modifications are required in 50% of patients in real-world settings, compared to 38% in the pivotal trial.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>Sunitinib remains a reference treatment for metastatic ccRCC, particularly in countries without access to first-line combination immunotherapy-VEGFR inhibitor regimens. Understanding resistance mechanisms continues to inform the development of novel therapeutic strategies for this disease.</p>
+    </sec>
+  </body>
+</article>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>European Urology</journal-title>
+      </journal-title-group>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="pmid">31001003</article-id>
+      <article-id pub-id-type="pmc">1003</article-id>
+      <article-id pub-id-type="doi">10.1016/j.eururo.2023.01.003</article-id>
+      <title-group>
+        <article-title>Meta-analysis of Enzalutamide versus Abiraterone in Metastatic Castration-Resistant Prostate Cancer</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name><surname>Chen</surname><given-names>Rui</given-names></name>
+        </contrib>
+        <contrib contrib-type="author">
+          <name><surname>Wang</surname><given-names>Li</given-names></name>
+        </contrib>
+      </contrib-group>
+      <pub-date pub-type="epub">
+        <year>2023</year>
+      </pub-date>
+      <abstract>
+        <p>Background: Enzalutamide and abiraterone are both approved for mCRPC but have never been compared in a head-to-head randomised trial. We conducted a systematic review and meta-analysis of indirect and network comparisons.</p>
+        <p>Methods: We searched MEDLINE, Embase, and Cochrane Central for phase III randomised trials of enzalutamide or abiraterone in mCRPC. We performed a network meta-analysis using a Bayesian random-effects model.</p>
+        <p>Results: Twenty-two eligible trials (n = 16,843 patients) were included. No significant difference in overall survival was found between enzalutamide and abiraterone (HR 0.96; 95% credible interval 0.84-1.10). Both agents demonstrated superior outcomes versus placebo.</p>
+        <p>Conclusions: Enzalutamide and abiraterone provide similar overall survival benefits in mCRPC. Treatment selection should be guided by toxicity profiles, patient comorbidities, and cost considerations.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Both enzalutamide and abiraterone acetate target androgen signalling and are approved for mCRPC treatment. Enzalutamide inhibits the androgen receptor directly, while abiraterone inhibits CYP17A1, a key enzyme in androgen biosynthesis. In the absence of head-to-head data, clinicians rely on indirect comparisons to guide therapy selection.</p>
+    </sec>
+    <sec>
+      <title>Methods</title>
+      <p>We performed a systematic review and network meta-analysis following PRISMA-NMA guidelines. Studies were eligible if they were phase III randomised controlled trials of enzalutamide or abiraterone in patients with mCRPC with an active control or placebo comparator. The primary outcome was overall survival. Secondary outcomes included radiographic progression-free survival and PSA response rate.</p>
+      <p>Statistical analysis used a Bayesian random-effects network meta-analysis model with non-informative priors. Inconsistency was assessed using node-splitting and the design-by-treatment interaction model.</p>
+    </sec>
+    <sec>
+      <title>Results</title>
+      <p>Twenty-two trials enrolling 16,843 patients met inclusion criteria. Both enzalutamide (HR vs placebo 0.71; 95% CI 0.61-0.82) and abiraterone (HR vs placebo 0.74; 95% CI 0.64-0.86) significantly improved overall survival. The network meta-analysis found no significant difference in overall survival between enzalutamide and abiraterone (HR 0.96; 95% credible interval 0.84 to 1.10).</p>
+      <p>Regarding safety, enzalutamide was associated with higher rates of fatigue, falls, and seizure, while abiraterone showed higher rates of hypokalemia, hypertension, and liver toxicity. No evidence of network inconsistency was detected.</p>
+    </sec>
+    <sec>
+      <title>Conclusion</title>
+      <p>This meta-analysis supports equivalent overall survival efficacy of enzalutamide and abiraterone in mCRPC. The choice between them should consider individual patient factors including comorbidities, concomitant medications, and cost.</p>
+    </sec>
+  </body>
+</article>
