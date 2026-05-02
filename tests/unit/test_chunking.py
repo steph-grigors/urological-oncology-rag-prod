@@ -1,9 +1,12 @@
 """
-Unit tests for src/ingestion/chunk.py and src/ingestion/parse.normalize_section.
+Unit tests for src/ingestion/chunk.py, src/ingestion/parse.normalize_section,
+src/ingestion/pipeline.run_ingestion, src/ingestion/embed (cost estimate),
+and scripts/migrate_chromadb_to_qdrant (SQLite reader).
 
 Run from project root: pytest tests/unit/test_chunking.py -v
 """
 
+import json
 import pytest
 
 from src.ingestion.chunk import (
@@ -406,3 +409,266 @@ class TestChunkPaper:
         chunks = chunk_paper(paper, cancer_type=["prostate"])
         assert len(chunks) == 1
         assert chunks[0].metadata.section == "results"
+
+
+# ── Incremental-mode deduplication ────────────────────────────────────────────
+
+class TestIncrementalMode:
+    """run_ingestion must skip PMC IDs already recorded in the checkpoint."""
+
+    def test_already_ingested_pmc_id_is_skipped(self, tmp_path, monkeypatch):
+        """A PMC ID in the checkpoint is counted as skipped, not fetched."""
+        checkpoint = tmp_path / "state.json"
+        checkpoint.write_text(json.dumps({"ingested_ids": ["PMC999"]}))
+
+        monkeypatch.setattr(
+            "src.ingestion.pipeline.search_pmc",
+            lambda *a, **kw: ["PMC999"],  # returns only the already-ingested ID
+        )
+        monkeypatch.setattr(
+            "src.ingestion.pipeline.fetch_batch",
+            lambda ids, **kw: iter([]),
+        )
+
+        from src.ingestion.pipeline import run_ingestion
+        summary = run_ingestion(
+            topics=["prostate"],
+            checkpoint_path=str(checkpoint),
+            dry_run=False,
+            openai_client=None,
+            qdrant_client=None,
+        )
+
+        assert summary.topics["prostate"].papers_skipped == 1
+        assert summary.topics["prostate"].papers_fetched == 0
+
+    def test_new_pmc_id_not_in_checkpoint_is_processed(self, tmp_path, monkeypatch):
+        """A PMC ID NOT in the checkpoint is fetched (attempt made)."""
+        checkpoint = tmp_path / "state.json"
+        checkpoint.write_text(json.dumps({"ingested_ids": []}))
+
+        fetch_calls: list[str] = []
+
+        def mock_fetch_batch(ids, **kw):
+            fetch_calls.extend(ids)
+            return iter([])  # yield nothing (XML unavailable in test)
+
+        monkeypatch.setattr(
+            "src.ingestion.pipeline.search_pmc",
+            lambda *a, **kw: ["PMC001"],
+        )
+        monkeypatch.setattr("src.ingestion.pipeline.fetch_batch", mock_fetch_batch)
+
+        from src.ingestion.pipeline import run_ingestion
+        run_ingestion(
+            topics=["prostate"],
+            checkpoint_path=str(checkpoint),
+            dry_run=False,
+            openai_client=None,
+            qdrant_client=None,
+        )
+
+        assert "PMC001" in fetch_calls
+
+    def test_checkpoint_updated_after_successful_paper(self, tmp_path, monkeypatch):
+        """After processing a paper the checkpoint file gains its PMC ID."""
+        import src.ingestion.parse as parse_mod
+        from src.ingestion.parse import ParsedPaper, Section
+
+        checkpoint = tmp_path / "state.json"
+        checkpoint.write_text(json.dumps({"ingested_ids": []}))
+
+        fake_paper = ParsedPaper(
+            pmc_id="PMC42",
+            pmid="99",
+            doi="",
+            title="Test Paper",
+            abstract="",
+            journal="J Test",
+            year=2023,
+            authors=["A B"],
+            sections=[Section("results", "results", _words(40), "text")],
+        )
+
+        monkeypatch.setattr(
+            "src.ingestion.pipeline.search_pmc",
+            lambda *a, **kw: ["PMC42"],
+        )
+        monkeypatch.setattr(
+            "src.ingestion.pipeline.fetch_batch",
+            lambda ids, **kw: iter([("PMC42", "<xml/>")]),
+        )
+        # Pipeline imports parse_paper from src.ingestion.parse inside the loop
+        monkeypatch.setattr(parse_mod, "parse_paper", lambda xml: fake_paper)
+
+        from src.ingestion.pipeline import run_ingestion
+        run_ingestion(
+            topics=["prostate"],
+            checkpoint_path=str(checkpoint),
+            dry_run=False,
+            openai_client=None,
+            qdrant_client=None,
+        )
+
+        saved = json.loads(checkpoint.read_text())
+        assert "PMC42" in saved["ingested_ids"]
+
+
+# ── Dry-run guard ─────────────────────────────────────────────────────────────
+
+class TestDryRun:
+    """With dry_run=True, embed_chunks must never be called."""
+
+    def test_dry_run_skips_embedding(self, monkeypatch):
+        embed_called: list[bool] = []
+
+        monkeypatch.setattr(
+            "src.ingestion.pipeline.search_pmc",
+            lambda *a, **kw: ["PMC001", "PMC002"],
+        )
+        monkeypatch.setattr(
+            "src.ingestion.pipeline.embed_chunks",
+            lambda *a, **kw: embed_called.append(True),
+        )
+
+        from src.ingestion.pipeline import run_ingestion
+        summary = run_ingestion(
+            topics=["prostate"],
+            dry_run=True,
+            openai_client=object(),  # truthy — would normally trigger embedding
+            qdrant_client=object(),
+        )
+
+        assert len(embed_called) == 0
+        assert summary.topics["prostate"].papers_fetched == 2
+
+    def test_dry_run_reports_would_be_fetched_count(self, monkeypatch):
+        """Dry-run total_papers counts the new (not-yet-ingested) IDs found."""
+        monkeypatch.setattr(
+            "src.ingestion.pipeline.search_pmc",
+            lambda *a, **kw: ["PMC1", "PMC2", "PMC3"],
+        )
+
+        from src.ingestion.pipeline import run_ingestion
+        summary = run_ingestion(topics=["bladder"], dry_run=True)
+        assert summary.total_papers == 3
+
+
+# ── Cost estimate ─────────────────────────────────────────────────────────────
+
+class TestCostEstimate:
+    """EmbedSummary.estimated_cost_usd must be proportional to word count."""
+
+    def test_cost_grows_with_chunk_count(self):
+        """More chunks → higher estimated cost."""
+        from unittest.mock import MagicMock
+        from src.ingestion.embed import embed_chunks, EmbedSummary
+
+        mock_openai = MagicMock()
+        mock_qdrant = MagicMock()
+        mock_qdrant.get_collections.return_value.collections = []
+
+        # 2-word chunk → minimal cost
+        class _FakeChunk:
+            id = "pmcA_results_0"
+            text = "word1 word2"
+            class metadata:
+                title = "T"; section = "results"; chunk_type = "text"
+                chunk_index = 0; pmcid = "A"; pmid = "1"
+                authors = []; journal = "J"; year = 2022
+                cancer_type = ["prostate"]; study_design = "rct"
+                sample_size = None; primary_outcome = None; evidence_level = 2
+
+        mock_openai.embeddings.create.return_value.data = [
+            MagicMock(embedding=[0.1] * 1536)
+        ]
+
+        small = embed_chunks([_FakeChunk()], mock_openai, mock_qdrant, "test_col", batch_size=100)
+        assert small.estimated_cost_usd > 0
+
+        # 200-word chunk → higher cost
+        class _BigChunk:
+            id = "pmcB_results_0"
+            text = " ".join(f"word{i}" for i in range(200))
+            class metadata:
+                title = "T"; section = "results"; chunk_type = "text"
+                chunk_index = 0; pmcid = "B"; pmid = "2"
+                authors = []; journal = "J"; year = 2022
+                cancer_type = ["bladder"]; study_design = "rct"
+                sample_size = None; primary_outcome = None; evidence_level = 2
+
+        mock_openai.embeddings.create.return_value.data = [
+            MagicMock(embedding=[0.1] * 1536)
+        ]
+
+        big = embed_chunks([_BigChunk()], mock_openai, mock_qdrant, "test_col", batch_size=100)
+        assert big.estimated_cost_usd > small.estimated_cost_usd
+
+    def test_cost_formula(self):
+        """Cost for N words = N * 1.3 / 1000 * 0.00002."""
+        from src.ingestion.embed import _COST_PER_1K_TOKENS, _TOKENS_PER_WORD
+        n_words = 1000
+        expected = n_words * _TOKENS_PER_WORD / 1000 * _COST_PER_1K_TOKENS
+        assert abs(expected - (1000 * 1.3 / 1000 * 0.00002)) < 1e-10
+
+
+# ── Migration script (SQLite reader) ─────────────────────────────────────────
+
+class TestMigrationSQLiteReader:
+    """migrate_chromadb_to_qdrant.read_chromadb_records reads the real SQLite."""
+
+    SQLITE_PATH = "chroma_db_scaled/chroma.sqlite3"
+
+    def test_record_count_matches_embeddings_table(self):
+        import sqlite3 as _sqlite3
+        from pathlib import Path
+
+        if not Path(self.SQLITE_PATH).exists():
+            pytest.skip("ChromaDB SQLite not present")
+
+        from scripts.migrate_chromadb_to_qdrant import read_chromadb_records
+        records = read_chromadb_records(self.SQLITE_PATH)
+
+        conn = _sqlite3.connect(self.SQLITE_PATH)
+        expected = conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
+        conn.close()
+
+        assert len(records) == expected
+
+    def test_records_have_required_fields(self):
+        from pathlib import Path
+        if not Path(self.SQLITE_PATH).exists():
+            pytest.skip("ChromaDB SQLite not present")
+
+        from scripts.migrate_chromadb_to_qdrant import read_chromadb_records
+        records = read_chromadb_records(self.SQLITE_PATH)
+
+        required = {"embedding_id", "chroma:document", "pmc_id"}
+        for rec in records[:20]:
+            missing = required - rec.keys()
+            assert not missing, f"Record missing keys: {missing}"
+
+    def test_migration_dry_run_no_writes(self):
+        """dry_run=True must not call openai or qdrant."""
+        from pathlib import Path
+        if not Path(self.SQLITE_PATH).exists():
+            pytest.skip("ChromaDB SQLite not present")
+
+        from unittest.mock import MagicMock
+        from scripts.migrate_chromadb_to_qdrant import migrate
+
+        mock_openai = MagicMock()
+        mock_qdrant = MagicMock()
+
+        report = migrate(
+            sqlite_path=self.SQLITE_PATH,
+            openai_client=mock_openai,
+            qdrant_client=mock_qdrant,
+            collection="test",
+            dry_run=True,
+        )
+
+        mock_openai.embeddings.create.assert_not_called()
+        mock_qdrant.upsert.assert_not_called()
+        assert report.source_count > 0
+        assert report.migrated == 0

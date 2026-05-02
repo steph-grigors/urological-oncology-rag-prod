@@ -1,0 +1,284 @@
+What was implemented (4 source files + 1 script + test extensions)
+====================================================================
+
+Session goal: Implement the full ingestion pipeline (fetch → embed → orchestrate),
+the Postgres document store abstraction, a one-time ChromaDB → Qdrant migration
+script, and extended integration tests covering incremental mode, dry-run,
+cost estimation, and migration.
+
+─────────────────────────────────────────────────────────────────────────────
+PACKAGES AVAILABLE / NOT AVAILABLE
+─────────────────────────────────────────────────────────────────────────────
+
+Available and used:
+  requests 2.31.0 — NCBI E-utilities HTTP calls
+  biopython 1.83  — (available but not used; requests + XML parsing is sufficient)
+  sqlite3         — direct ChromaDB SQLite reader (no chromadb package needed)
+  qdrant_client   — used in embed.py; guarded with try/except ImportError
+
+Not installed (graceful degradation applied):
+  chromadb 0.4.22 — listed in requirements.txt but not installed; migration
+                    script reads chroma_db_scaled/chroma.sqlite3 directly via
+                    sqlite3 module, extracting text + metadata, then re-embeds.
+
+─────────────────────────────────────────────────────────────────────────────
+FILES CHANGED
+─────────────────────────────────────────────────────────────────────────────
+
+Source files (fully implemented, replacing stubs):
+  1.  src/ingestion/fetch.py
+  2.  src/ingestion/embed.py
+  3.  src/ingestion/pipeline.py
+  4.  src/db/document_store.py
+
+New script:
+  5.  scripts/migrate_chromadb_to_qdrant.py
+      scripts/__init__.py  (empty, makes scripts/ importable in tests)
+
+Test file (extended):
+  6.  tests/unit/test_chunking.py  (+10 new tests, 4 new classes)
+
+─────────────────────────────────────────────────────────────────────────────
+src/ingestion/fetch.py
+─────────────────────────────────────────────────────────────────────────────
+
+PMC fetching via NCBI E-utilities (esearch + efetch).
+
+MESH_TERMS: dict[str, str]
+  Maps topic name to MeSH query string:
+    prostate   → '"Prostatic Neoplasms"[MeSH]'
+    bladder    → '"Urinary Bladder Neoplasms"[MeSH]'
+    kidney     → '"Kidney Neoplasms"[MeSH]'
+    testicular → '"Testicular Neoplasms"[MeSH]'
+
+search_pmc(query, max_results, date_range, ncbi_api_key) → list[str]
+  Calls esearch.fcgi with db=pmc, retmode=json.
+  Applies mindate/maxdate when date_range is given.
+  Returns IDs as "PMC{id}" strings.
+  Retries up to 4 times with exponential backoff (_RETRY_BASE=2s).
+
+fetch_fulltext(pmc_id, ncbi_api_key) → str | None
+  Calls efetch.fcgi with db=pmc, rettype=xml, retmode=xml.
+  Strips "PMC" prefix for the numeric ID parameter.
+  Returns None for: empty response, <error> in body, HTTP non-200 permanent
+  failures (4xx other than 429). Retries on 429 / 5xx.
+
+fetch_batch(pmc_ids, *, workers=4, ncbi_api_key, rate) → Iterator[tuple[str, str|None]]
+  Uses ThreadPoolExecutor to fetch in parallel.
+  Rate-limits to 10 req/s with API key, 3 req/s without (time.sleep per call).
+  Yields results as futures complete (not in original order).
+
+_get_json(url, params) → dict
+  Shared retry helper for JSON endpoints.
+
+─────────────────────────────────────────────────────────────────────────────
+src/ingestion/embed.py
+─────────────────────────────────────────────────────────────────────────────
+
+OpenAI embedding + Qdrant upsert with cost tracking.
+
+Constants:
+  _EMBEDDING_DIM = 1536         (text-embedding-3-small)
+  _COST_PER_1K_TOKENS = 0.00002 ($0.02/1M tokens)
+  _TOKENS_PER_WORD = 1.3        (rough estimate)
+
+EmbedSummary (dataclass)
+  total_chunks, embedded, skipped, failed, elapsed_seconds, estimated_cost_usd
+
+ensure_collection(qdrant_client, collection, dim=1536)
+  Creates collection with COSINE distance if it doesn't exist. Safe to call
+  repeatedly (checks existing names first).
+
+embed_chunks(chunks, openai_client, qdrant_client, collection,
+             batch_size=100, qdrant_batch_size=500, model="text-embedding-3-small")
+  → EmbedSummary
+  Embeds _chunk_input_text(chunk) = "title | section\ntext" (or context_prefix
+  if set on the chunk object).
+  Batches OpenAI calls (batch_size=100) with _embed_with_retry (4 attempts).
+  Buffers PointStructs; upserts to Qdrant in qdrant_batch_size=500 batches.
+  Point ID: stable UUID from MD5(chunk.id) via uuid.UUID(bytes=digest).
+  Payload includes all ChunkMetadata fields + "chunk_id" + "text" (capped 2000 chars).
+
+_embed_with_retry / _upsert_with_retry
+  Both use 2**attempt sleep, 4/3 retries respectively.
+
+qdrant_client guard: `try: from qdrant_client import ...` — raises ImportError
+  with a clear message if not installed.
+
+─────────────────────────────────────────────────────────────────────────────
+src/ingestion/pipeline.py
+─────────────────────────────────────────────────────────────────────────────
+
+CLI orchestrator wiring the full fetch → parse → chunk → embed pipeline.
+
+SUPPORTED_TOPICS = ["prostate", "bladder", "kidney", "testicular"]
+
+TopicSummary (dataclass)
+  papers_fetched, papers_skipped, chunks_produced, chunks_embedded,
+  estimated_cost_usd
+
+IngestionSummary (dataclass)
+  topics: dict[str, TopicSummary], total_papers, total_chunks, total_embedded,
+  elapsed_seconds, estimated_cost_usd
+
+run_ingestion(topics, date_range, max_papers_per_topic, skip_metadata_extraction,
+              checkpoint_path, dry_run, openai_client, qdrant_client,
+              collection, ncbi_api_key) → IngestionSummary
+  1. Loads checkpoint from data/ingestion_state.json (or creates empty).
+  2. Calls ensure_collection() if qdrant_client provided and not dry_run.
+  3. Tries to initialise MetadataExtractor (warns if unavailable, continues).
+  4. For each topic:
+       a. search_pmc() → deduplicate against checkpoint → log skipped count.
+       b. dry_run: records papers_fetched = len(new_ids), skips fetch/embed.
+       c. fetch_batch() → parse_paper() → chunk_paper() → (optional) metadata.
+       d. Checkpoint updated after each paper (incremental safety).
+       e. embed_chunks() for the full topic batch.
+  5. Returns IngestionSummary.
+
+Checkpointing: checkpoint["ingested_ids"] is a list of PMC ID strings. Written
+  after every successfully parsed paper so the run can restart mid-topic.
+
+CLI (_main):
+  Entry: python -m src.ingestion.pipeline
+  Args: --mode full|incremental (default incremental)
+        --cancer-types [prostate bladder kidney testicular]
+        --since-date YYYY/MM/DD (builds open-ended date_range)
+        --dry-run
+        --limit N (default 300)
+        --checkpoint PATH
+        --skip-metadata
+        --collection NAME
+
+─────────────────────────────────────────────────────────────────────────────
+src/db/document_store.py
+─────────────────────────────────────────────────────────────────────────────
+
+Postgres document store using sync SQLAlchemy + asyncio.to_thread (no asyncpg).
+
+Return types (all dataclasses defined in this module):
+  BM25Result    — chunk_id, text, rank, pmc_id, title, section, metadata
+  SearchFilter  — cancer_types, year_from, year_to, study_designs
+  CorpusStats   — total_chunks, total_papers, by_topic, by_year, by_study_design
+  AuditRecord   — all fields that map to AuditLog ORM columns
+
+DocumentStore(db_url: str)
+  Creates sync engine (SQLite compat via check_same_thread=False).
+  Sets _is_postgres flag to choose between FTS implementations.
+  Calls Base.metadata.create_all() at construction.
+
+Async methods (all delegate to sync via asyncio.to_thread):
+  upsert_chunks(chunks)        — upserts Paper rows then Chunk rows.
+  full_text_search(query, top_k, filter) → list[BM25Result]
+    Postgres: ts_rank_cd + plainto_tsquery on tsvector_col.
+    SQLite fallback: LIKE %term% AND ... (for tests).
+  get_chunk(chunk_id)          — session.get(ChunkModel, id).
+  write_audit(record)          — inserts AuditLog row.
+  get_corpus_stats()           — COUNT aggregates per topic/year/study_design.
+
+─────────────────────────────────────────────────────────────────────────────
+scripts/migrate_chromadb_to_qdrant.py
+─────────────────────────────────────────────────────────────────────────────
+
+One-time migration: ChromaDB SQLite → Qdrant (re-embeds with OpenAI).
+
+Why re-embed: The actual vectors are stored in a binary HNSW index under
+  chroma_db_scaled/8ffbee80-.../data_level0.bin which requires the chromadb
+  package (not installed). Re-embedding at $0.02/1M tokens costs ~$0.11 for
+  41,970 chunks and guarantees the new system uses the same embedding model.
+
+read_chromadb_records(sqlite_path) → list[dict]
+  Opens chroma.sqlite3 directly via sqlite3 module.
+  JOINs embeddings + embedding_metadata tables.
+  Returns one dict per embedding_id with all metadata keys including
+  "chroma:document" (the raw chunk text).
+
+_build_embed_text(record) → str
+  Reconstructs "title | section_name\ndocument" for the embedding input.
+
+_record_to_payload(record) → dict
+  Maps ChromaDB metadata keys to Qdrant payload schema. Fills missing fields
+  (study_design="unknown", evidence_level=6, chunk_type="text").
+
+migrate(sqlite_path, openai_client, qdrant_client, collection,
+        batch_size=100, dry_run=False) → MigrationReport
+  1. read_chromadb_records() → 41,970 records.
+  2. ensure_collection() (creates if absent).
+  3. Batches: embed + upsert with retry.
+  4. Logs progress every batch.
+  5. Verifies Qdrant point count vs. source count after migration.
+  Returns MigrationReport: source_count, migrated, failed, estimated_cost_usd,
+  elapsed_seconds, errors.
+
+CLI:
+  OPENAI_API_KEY=... QDRANT_URL=http://localhost:6333 \
+      python scripts/migrate_chromadb_to_qdrant.py \
+      [--sqlite-path chroma_db_scaled/chroma.sqlite3] \
+      [--collection urological_oncology_papers] \
+      [--batch-size 100] [--dry-run]
+  Exits with code 1 if any batch fails.
+
+─────────────────────────────────────────────────────────────────────────────
+tests/unit/test_chunking.py  (10 new tests, all passing)
+─────────────────────────────────────────────────────────────────────────────
+
+TestIncrementalMode  (3 tests)
+  Already-ingested PMC ID is skipped (papers_skipped += 1, fetched = 0).
+  New PMC ID is passed to fetch_batch.
+  PMC ID appears in checkpoint JSON after successful paper processing.
+
+TestDryRun  (2 tests)
+  With dry_run=True, embed_chunks is never called.
+  total_papers in summary equals the number of new (would-be-fetched) IDs.
+
+TestCostEstimate  (2 tests)
+  Cost grows with larger chunk text.
+  Formula: n_words * 1.3 / 1000 * 0.00002 matches constants.
+
+TestMigrationSQLiteReader  (3 tests)
+  Record count from read_chromadb_records matches embeddings table count.
+  All records have embedding_id, chroma:document, pmc_id keys.
+  dry_run=True makes no OpenAI or Qdrant calls (verified with MagicMock).
+
+─────────────────────────────────────────────────────────────────────────────
+TEST RESULTS
+─────────────────────────────────────────────────────────────────────────────
+
+  pytest tests/unit/test_chunking.py:
+    56 passed (46 pre-existing + 10 new), 0 failures
+
+  pytest tests/integration/:
+    31 passed, 0 failures (unchanged from session 5)
+
+  pytest tests/unit/ + tests/integration/:
+    134 passed, 18 failed (all pre-existing stubs in test_metadata_extraction.py
+    and test_golden_set.py — not part of this session)
+
+  New passing tests added this session: 10
+  Total cumulative passing tests: 134
+
+─────────────────────────────────────────────────────────────────────────────
+WHAT REMAINS (stub files not yet implemented)
+─────────────────────────────────────────────────────────────────────────────
+
+src/evaluation/
+  judges.py, golden_set.py, runner.py
+
+tests/unit/
+  test_metadata_extraction.py  — stub (NotImplementedError)
+
+tests/eval/
+  test_golden_set.py           — stub (NotImplementedError)
+
+─────────────────────────────────────────────────────────────────────────────
+ARCHITECTURE NOTE: CHROMADB → QDRANT DATA STATUS
+─────────────────────────────────────────────────────────────────────────────
+
+ChromaDB at chroma_db_scaled/ contains:
+  - 1 collection: "urological_oncology_papers"
+  - 41,970 chunks from 815 papers
+  - Metadata keys: pmc_id, pmid, doi, title, journal, year, topic,
+    section_name, chunk_index, total_chunks, chroma:document
+
+The migration script is ready to run once Qdrant and OpenAI are available.
+Estimated migration time: ~15 min at 100 chunks/batch with OpenAI rate limits.
+Estimated cost: ~$0.11.
