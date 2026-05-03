@@ -99,6 +99,15 @@ async def lifespan(app: FastAPI):
         logger.warning("AuditLogger not available: %s", exc)
         app.state.audit_logger = None
 
+    # ── Document store (conversation history, corpus stats) ────────────────
+    try:
+        from src.db.document_store import DocumentStore
+        app.state.document_store = DocumentStore(settings.postgres_url)
+        logger.info("DocumentStore initialised")
+    except Exception as exc:
+        logger.warning("DocumentStore not available: %s", exc)
+        app.state.document_store = None
+
     yield
 
     # ── Shutdown ───────────────────────────────────────────────────────────

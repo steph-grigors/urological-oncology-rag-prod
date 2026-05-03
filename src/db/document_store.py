@@ -21,7 +21,7 @@ from typing import Optional
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-from src.db.models import AuditLog, Base, Chunk as ChunkModel, Paper
+from src.db.models import AuditLog, Base, Chunk as ChunkModel, ConversationHistory, Paper
 
 logger = logging.getLogger(__name__)
 
@@ -80,10 +80,12 @@ class AuditRecord:
 
 class DocumentStore:
     def __init__(self, db_url: str) -> None:
-        connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
-        self._engine = create_engine(db_url, connect_args=connect_args)
+        # asyncpg is an async-only driver; swap to psycopg2 for sync create_engine
+        sync_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+        connect_args = {"check_same_thread": False} if sync_url.startswith("sqlite") else {}
+        self._engine = create_engine(sync_url, connect_args=connect_args)
         Base.metadata.create_all(self._engine)
-        self._is_postgres = "postgresql" in db_url or "postgres" in db_url
+        self._is_postgres = "postgresql" in sync_url or "postgres" in sync_url
 
     # ── Public async API ──────────────────────────────────────────────────────
 
@@ -107,6 +109,22 @@ class DocumentStore:
 
     async def get_corpus_stats(self) -> CorpusStats:
         return await asyncio.to_thread(self._get_corpus_stats_sync)
+
+    async def get_conversation_history(
+        self, conversation_id: str, limit: int = 10
+    ) -> list[dict]:
+        """Return the last `limit` turns as [{"role": ..., "content": ...}, ...] ordered oldest-first."""
+        return await asyncio.to_thread(
+            self._get_conversation_history_sync, conversation_id, limit
+        )
+
+    async def append_conversation_turns(
+        self, conversation_id: str, question: str, answer: str
+    ) -> None:
+        """Persist one user + one assistant turn for the given conversation."""
+        await asyncio.to_thread(
+            self._append_conversation_turns_sync, conversation_id, question, answer
+        )
 
     # ── Synchronous implementations ───────────────────────────────────────────
 
@@ -240,6 +258,38 @@ class DocumentStore:
                 flagged=record.flagged,
             ))
             session.commit()
+
+    def _get_conversation_history_sync(
+        self, conversation_id: str, limit: int
+    ) -> list[dict]:
+        with Session(self._engine) as session:
+            rows = (
+                session.query(ConversationHistory)
+                .filter(ConversationHistory.conversation_id == conversation_id)
+                .order_by(ConversationHistory.created_at.asc())
+                .limit(limit)
+                .all()
+            )
+        return [{"role": row.role, "content": row.content} for row in rows]
+
+    def _append_conversation_turns_sync(
+        self, conversation_id: str, question: str, answer: str
+    ) -> None:
+        with Session(self._engine) as session:
+            session.add(ConversationHistory(
+                id=str(__import__("uuid").uuid4()),
+                conversation_id=conversation_id,
+                role="user",
+                content=question,
+            ))
+            session.add(ConversationHistory(
+                id=str(__import__("uuid").uuid4()),
+                conversation_id=conversation_id,
+                role="assistant",
+                content=answer,
+            ))
+            session.commit()
+        logger.debug("append_conversation_turns: conversation_id=%s", conversation_id)
 
     def _get_corpus_stats_sync(self) -> CorpusStats:
         stats = CorpusStats()

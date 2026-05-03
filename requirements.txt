@@ -13,7 +13,8 @@ qdrant-client>=1.7.0
 
 # ── Database ───────────────────────────────────────────────────────────────────
 sqlalchemy>=2.0.0
-asyncpg>=0.29.0          # async Postgres driver
+asyncpg>=0.29.0          # async Postgres driver (Alembic, asyncpg connections)
+psycopg2-binary>=2.9.0   # sync Postgres driver (DocumentStore, AuditLogger via asyncio.to_thread)
 alembic>=1.13.0          # schema migrations
 
 # ── Observability ──────────────────────────────────────────────────────────────

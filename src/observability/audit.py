@@ -23,9 +23,10 @@ class AuditLogger:
     """INSERT-only audit log writer backed by SQLAlchemy (sync engine)."""
 
     def __init__(self, db_url: str) -> None:
-        # Use check_same_thread=False for SQLite in async contexts
-        connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
-        self._engine = create_engine(db_url, connect_args=connect_args)
+        # asyncpg is an async-only driver; swap to psycopg2 for sync create_engine
+        sync_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+        connect_args = {"check_same_thread": False} if sync_url.startswith("sqlite") else {}
+        self._engine = create_engine(sync_url, connect_args=connect_args)
         Base.metadata.create_all(self._engine)
 
     @property

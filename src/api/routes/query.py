@@ -18,6 +18,7 @@ from src.generation.confidence import gate
 from src.observability.logging import get_logger, query_id_var
 
 if TYPE_CHECKING:
+    from src.db.document_store import DocumentStore
     from src.generation.generator import ClinicalGenerator
     from src.observability.audit import AuditLogger
     from src.retrieval.retriever import RAGRetriever
@@ -93,6 +94,10 @@ def get_audit_logger(request: Request) -> "AuditLogger | None":
     return getattr(request.app.state, "audit_logger", None)
 
 
+def get_document_store(request: Request) -> "DocumentStore | None":
+    return getattr(request.app.state, "document_store", None)
+
+
 # ── Route handler ─────────────────────────────────────────────────────────────
 
 @router.post("/query", response_model=QueryResponse)
@@ -102,6 +107,7 @@ async def query_endpoint(
     retriever: "RAGRetriever | None" = Depends(get_retriever),
     generator: "ClinicalGenerator | None" = Depends(get_generator),
     audit_logger: "AuditLogger | None" = Depends(get_audit_logger),
+    document_store: "DocumentStore | None" = Depends(get_document_store),
     _api_key: str = Depends(require_api_key),
 ) -> Any:
     if retriever is None or generator is None:
@@ -137,10 +143,22 @@ async def query_endpoint(
     retr_ms = int(sum(retrieval_result.latency_ms.values()))
     rerank_ms = int(retrieval_result.latency_ms.get("rerank_ms", 0))
 
+    # ── Conversation history fetch ─────────────────────────────────────────
+    conversation_history: list[dict] | None = None
+    if body.conversation_id and document_store is not None:
+        try:
+            conversation_history = await document_store.get_conversation_history(
+                body.conversation_id, limit=10
+            )
+        except Exception as exc:
+            logger.warning("Failed to fetch conversation history: %s", exc)
+
     # ── Generation ────────────────────────────────────────────────────────
     t_gen = time.perf_counter()
     try:
-        gen_result = generator.generate(body.query, retrieval_result.chunks)
+        gen_result = generator.generate(
+            body.query, retrieval_result.chunks, conversation_history=conversation_history
+        )
     except Exception as exc:
         logger.error("Generation failed: %s", exc)
         raise HTTPException(status_code=503, detail="Generation service unavailable")
@@ -165,9 +183,18 @@ async def query_endpoint(
         except Exception as exc:
             logger.warning("Audit log failed: %s", exc)
 
+    # ── Persist conversation turn (fire-and-forget, never raise) ─────────
+    conversation_id = body.conversation_id or query_id
+    if body.conversation_id and document_store is not None:
+        try:
+            await document_store.append_conversation_turns(
+                body.conversation_id, body.query, gen_result.answer
+            )
+        except Exception as exc:
+            logger.warning("Failed to persist conversation turn: %s", exc)
+
     # ── Build source cards ────────────────────────────────────────────────
     sources = [_to_source_card(c) for c in retrieval_result.chunks]
-    conversation_id = body.conversation_id or query_id
 
     response_body = QueryResponse(
         answer=gen_result.answer,
