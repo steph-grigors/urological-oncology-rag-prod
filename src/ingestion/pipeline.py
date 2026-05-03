@@ -119,6 +119,8 @@ def run_ingestion(
             study_design = "unknown"
             sample_size: int | None = None
             primary_outcome: str | None = None
+            intervention: str | None = None
+            comparator: str | None = None
 
             if meta_extractor:
                 try:
@@ -127,6 +129,8 @@ def run_ingestion(
                     study_design = getattr(meta, "study_design", None) or "unknown"
                     sample_size = getattr(meta, "sample_size", None)
                     primary_outcome = getattr(meta, "primary_outcome", None)
+                    intervention = getattr(meta, "intervention", None)
+                    comparator = getattr(meta, "comparator", None)
                 except Exception as exc:
                     logger.warning("MetadataExtractor failed for %s: %s", pmc_id, exc)
 
@@ -137,6 +141,8 @@ def run_ingestion(
                 study_design=study_design,
                 sample_size=sample_size,
                 primary_outcome=primary_outcome,
+                intervention=intervention,
+                comparator=comparator,
             )
 
             all_topic_chunks.extend(chunks)

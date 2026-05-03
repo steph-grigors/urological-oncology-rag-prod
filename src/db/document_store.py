@@ -143,6 +143,8 @@ class DocumentStore:
                         journal=meta.journal,
                         year=meta.year,
                         study_design=meta.study_design,
+                        intervention=getattr(meta, "intervention", None),
+                        comparator=getattr(meta, "comparator", None),
                     )
                     session.add(paper)
 

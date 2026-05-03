@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from config.constants import MIN_CHUNK_WORDS
 from src.ingestion.parse import ParsedPaper, Section
 
 
@@ -48,6 +49,8 @@ class ChunkMetadata:
     sample_size: Optional[int]
     primary_outcome: Optional[str]
     evidence_level: int
+    intervention: Optional[str] = None
+    comparator: Optional[str] = None
 
 
 @dataclass
@@ -65,6 +68,8 @@ def chunk_paper(
     study_design: str = "unknown",
     sample_size: Optional[int] = None,
     primary_outcome: Optional[str] = None,
+    intervention: Optional[str] = None,
+    comparator: Optional[str] = None,
     chunk_size: int = 200,
     overlap: int = 30,
 ) -> list[Chunk]:
@@ -89,6 +94,8 @@ def chunk_paper(
         study_design=study_design,
         sample_size=sample_size,
         primary_outcome=primary_outcome,
+        intervention=intervention,
+        comparator=comparator,
         evidence_level=EVIDENCE_LEVELS.get(study_design, 6),
     )
 
@@ -147,6 +154,10 @@ def chunk_section(
     # Text section
     words = section.content.split()
     if not words:
+        return []
+
+    # Drop fragments too short to carry useful medical signal
+    if len(words) < MIN_CHUNK_WORDS:
         return []
 
     if len(words) <= SHORT_SECTION_THRESHOLD:

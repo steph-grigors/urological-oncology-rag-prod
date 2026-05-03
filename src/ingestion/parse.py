@@ -226,6 +226,16 @@ def _walk(element: ET.Element, sections: list[Section], parent_canonical: str) -
             for p in child.findall("p")
             if _clean(_get_text(p))
         ]
+        # ── List items (eligibility criteria, endpoints, adverse events) ───
+        for lst in child.findall("list"):
+            items = [
+                _clean(_get_text(item))
+                for item in lst.findall(".//list-item")
+                if _clean(_get_text(item))
+            ]
+            if items:
+                para_parts.append("; ".join(items))
+
         if para_parts:
             sections.append(Section(
                 name=canonical,

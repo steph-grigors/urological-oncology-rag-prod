@@ -49,8 +49,14 @@ _OUTPUT_SCHEMA: dict = {
         "primary_outcome": {
             "anyOf": [{"type": "string", "maxLength": 300}, {"type": "null"}],
         },
+        "intervention": {
+            "anyOf": [{"type": "string", "maxLength": 200}, {"type": "null"}],
+        },
+        "comparator": {
+            "anyOf": [{"type": "string", "maxLength": 200}, {"type": "null"}],
+        },
     },
-    "required": ["study_design", "sample_size", "primary_outcome"],
+    "required": ["study_design", "sample_size", "primary_outcome", "intervention", "comparator"],
     "additionalProperties": False,
 }
 
@@ -74,13 +80,18 @@ Extraction rules:
     Return null if not stated or ambiguous.
   • primary_outcome: the primary endpoint in one concise sentence.
     Return null if not stated.
+  • intervention: the main treatment, drug, or procedure under study (e.g.
+    "enzalutamide 160 mg/day", "radical cystectomy", "pembrolizumab").
+    Return null if not a comparative or interventional study.
+  • comparator: what the intervention is compared against (e.g. "placebo",
+    "standard of care", "abiraterone"). Return null if no comparator stated.
 """
 
 _USER_TEMPLATE = """\
 Abstract:
 {abstract}
 
-Extract: study_design, sample_size, primary_outcome.\
+Extract: study_design, sample_size, primary_outcome, intervention, comparator.\
 """
 
 
@@ -92,6 +103,8 @@ class ExtractionResult:
     study_design: str
     sample_size: Optional[int]
     primary_outcome: Optional[str]
+    intervention: Optional[str] = None
+    comparator: Optional[str] = None
     extraction_failed: bool = False
     extraction_model: str = ""
 
@@ -172,6 +185,8 @@ def _call_llm(
             study_design=_valid_design(data.get("study_design")),
             sample_size=_to_int(data.get("sample_size")),
             primary_outcome=_trim(data.get("primary_outcome"), 300),
+            intervention=_trim(data.get("intervention"), 200),
+            comparator=_trim(data.get("comparator"), 200),
             extraction_failed=False,
             extraction_model=model,
         )
@@ -182,6 +197,8 @@ def _call_llm(
             study_design="unknown",
             sample_size=None,
             primary_outcome=None,
+            intervention=None,
+            comparator=None,
             extraction_failed=True,
             extraction_model=model,
         )
@@ -231,3 +248,31 @@ def _trim(value: object, max_len: int) -> Optional[str]:
         return None
     value = value.strip()
     return value[:max_len] if value else None
+
+
+# ── Class wrapper expected by pipeline.py ────────────────────────────────────
+
+class MetadataExtractor:
+    """Thin class wrapper around extract_metadata() for use by the pipeline."""
+
+    def __init__(
+        self,
+        openai_client: OpenAI,
+        model: str = "gpt-4o-mini",
+        cache_path: str = "data/metadata_cache.json",
+    ) -> None:
+        self._client = openai_client
+        self._model = model
+        self._cache_path = cache_path
+
+    def extract(self, paper) -> ExtractionResult:
+        """Extract metadata from a ParsedPaper. Falls back to defaults on failure."""
+        pmid = getattr(paper, "pmid", "") or ""
+        abstract = getattr(paper, "abstract", "") or ""
+        return extract_metadata(
+            pmid=pmid,
+            abstract=abstract,
+            openai_client=self._client,
+            cache_path=self._cache_path,
+            model=self._model,
+        )

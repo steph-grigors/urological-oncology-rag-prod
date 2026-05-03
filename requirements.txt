@@ -10,6 +10,7 @@ anthropic>=0.18.0
 # ── Retrieval ──────────────────────────────────────────────────────────────────
 cohere>=4.40.0
 qdrant-client>=1.7.0
+rank_bm25>=0.2.2          # in-memory BM25 index for hybrid search
 
 # ── Database ───────────────────────────────────────────────────────────────────
 sqlalchemy>=2.0.0
