@@ -16,6 +16,54 @@ router = APIRouter(prefix="/health", tags=["health"])
 _startup_time = time.time()
 
 
+@router.get("")
+async def health_check(request: Request) -> Any:
+    """Combined health check: Qdrant + Postgres + OpenAI key configured.
+
+    Returns {status: ok|degraded, checks: {qdrant, postgres, openai}}.
+    Suitable for load-balancer probes and the docker-compose healthcheck.
+    """
+    from fastapi.responses import JSONResponse
+
+    checks: dict[str, str] = {}
+    ok = True
+
+    retriever = getattr(request.app.state, "retriever", None)
+    if retriever is not None:
+        try:
+            retriever._store.collection_stats()
+            checks["qdrant"] = "ok"
+        except Exception as exc:
+            checks["qdrant"] = f"error: {exc}"
+            ok = False
+    else:
+        checks["qdrant"] = "not_configured"
+
+    audit_logger = getattr(request.app.state, "audit_logger", None)
+    if audit_logger is not None:
+        try:
+            from sqlalchemy import text
+            with audit_logger.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            checks["postgres"] = "ok"
+        except Exception as exc:
+            checks["postgres"] = f"error: {exc}"
+            ok = False
+    else:
+        checks["postgres"] = "not_configured"
+
+    settings = getattr(request.app.state, "settings", None)
+    if settings and settings.openai_api_key:
+        checks["openai"] = "ok"
+    else:
+        checks["openai"] = "not_configured"
+
+    return JSONResponse(
+        content={"status": "ok" if ok else "degraded", "checks": checks},
+        status_code=200 if ok else 503,
+    )
+
+
 @router.get("/live")
 async def liveness() -> dict[str, str]:
     """Always 200 — confirms the process is running."""

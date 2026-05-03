@@ -1,18 +1,39 @@
 """
 Streamlit Web Interface for Urological Oncology RAG System
-Professional UI - Refactored v2
+Professional UI - API-connected v3
 """
 
 import streamlit as st
 import os
 import time
 import json
+import uuid
+import requests
 from pathlib import Path
 import plotly.graph_objects as go
 import plotly.express as px
 
-from src.retrieval_optimized import OptimizedRAGRetriever, OptimizedRetrievalConfig
-from src.conversation_memory import ConversationMemory, ConversationalRAG
+# ── Backend API configuration ──────────────────────────────────────────────────
+_API_BASE = os.environ.get("API_BACKEND_URL", "http://localhost:8000").rstrip("/")
+_API_KEY = os.environ.get("API_KEY", "")
+
+# Evidence quality badge colours and labels
+_QUALITY_BADGES: dict[str, tuple[str, str]] = {
+    "high":         ("#2e7d32", "🟢 High Evidence"),
+    "hedged":       ("#f57c00", "🟡 Hedged"),
+    "caveated":     ("#c62828", "🔴 Caveated"),
+    "insufficient": ("#546e7a", "⚫ Insufficient"),
+}
+
+# Study-design badge colours
+_DESIGN_COLORS: dict[str, str] = {
+    "rct":          "#2ca02c",
+    "meta_analysis":"#1f77b4",
+    "cohort":       "#ff7f0e",
+    "case_report":  "#9467bd",
+    "review":       "#8c564b",
+    "unknown":      "#7f7f7f",
+}
 
 # Page configuration
 st.set_page_config(
@@ -131,10 +152,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Initialize session state
-if 'conversation_memory' not in st.session_state:
-    st.session_state.conversation_memory = ConversationMemory()
-if 'conversation' not in st.session_state:
-    st.session_state.conversation = None
+if 'conversation_id' not in st.session_state:
+    st.session_state.conversation_id = None   # str UUID in chat mode, None for single-turn
 if 'current_response' not in st.session_state:
     st.session_state.current_response = None
 if 'quality_metrics' not in st.session_state:
@@ -151,43 +170,69 @@ if 'user_api_key' not in st.session_state:
     st.session_state.user_api_key = None
 
 
-@st.cache_resource
-def load_rag_system(_api_key=None):
-    """Load RAG system with optional user API key"""
-
-    # Use user key if provided, otherwise use environment variable
-    api_key = _api_key or os.getenv("OPENAI_API_KEY")
-
-    if not api_key:
-        st.error("❌ No API key available. Please enter your OpenAI API key in the sidebar.")
-        st.stop()
-
-    # Set the API key for this session
-    os.environ["OPENAI_API_KEY"] = api_key
-
-    with st.spinner("🚀 Initializing RAG System..."):
-        retriever = OptimizedRAGRetriever(
-            chroma_db_dir="chroma_db_scaled",
-            collection_name="urological_oncology_papers",
-            config=OptimizedRetrievalConfig(
-                top_k=5,
-                max_context_length=3000,
-                max_tokens=500,
-                use_cache=True
-            )
-        )
-    return retriever
+def _query_backend(
+    query: str,
+    cancer_types: list,
+    top_k: int,
+    conversation_id: str | None,
+) -> dict:
+    """POST /query to the FastAPI backend and return the parsed JSON."""
+    api_key = st.session_state.get("user_api_key") or _API_KEY
+    headers = {"X-API-Key": api_key} if api_key else {}
+    payload: dict = {"query": query, "cancer_types": cancer_types, "top_k": top_k}
+    if conversation_id:
+        payload["conversation_id"] = conversation_id
+    resp = requests.post(f"{_API_BASE}/query", json=payload, headers=headers, timeout=60)
+    resp.raise_for_status()
+    return resp.json()
 
 
-@st.cache_data
-def load_evaluation_metrics():
-    """Load evaluation metrics if available"""
+def _quality_badge_html(evidence_quality: str) -> str:
+    color, label = _QUALITY_BADGES.get(
+        evidence_quality, ("#546e7a", evidence_quality.replace("_", " ").title())
+    )
+    return (
+        f"<span style='background:{color};color:white;padding:3px 12px;"
+        f"border-radius:12px;font-size:0.85em;font-weight:600'>{label}</span>"
+    )
+
+
+@st.cache_data(ttl=300)
+def load_evaluation_metrics() -> dict | None:
+    """Fetch latest eval metrics from backend or fall back to local file."""
+    api_key = _API_KEY
+    headers = {"X-API-Key": api_key} if api_key else {}
     try:
-        metrics_path = Path("data/evaluation/scaled_system_metrics.json")
-        if metrics_path.exists():
-            with open(metrics_path, 'r') as f:
-                return json.load(f)
-    except:
+        resp = requests.get(f"{_API_BASE}/eval/results/latest", headers=headers, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            agg = data.get("aggregate", {})
+            return {
+                "avg_faithfulness":      agg.get("faithfulness", 0),
+                "avg_relevance":         agg.get("answer_relevance", 0),
+                "avg_context_precision": agg.get("context_precision", 0),
+                "avg_latency":           data.get("latency_stats", {}).get("mean", 0) / 1000,
+                "total_queries":         data.get("total_queries", 0),
+                "evaluation_date":       data.get("timestamp", "N/A"),
+            }
+    except Exception:
+        pass
+    # Fall back to a locally written metrics file
+    try:
+        path = Path("data/evaluation/latest_metrics.json")
+        if path.exists():
+            with open(path) as fh:
+                data = json.load(fh)
+            agg = data.get("aggregate", {})
+            return {
+                "avg_faithfulness":      agg.get("faithfulness", 0),
+                "avg_relevance":         agg.get("answer_relevance", 0),
+                "avg_context_precision": agg.get("context_precision", 0),
+                "avg_latency":           data.get("latency_stats", {}).get("mean", 0) / 1000,
+                "total_queries":         data.get("total_queries", 0),
+                "evaluation_date":       data.get("timestamp", "N/A"),
+            }
+    except Exception:
         pass
     return None
 
@@ -262,98 +307,123 @@ def display_sidebar():
             help="Number of relevant chunks to retrieve"
         )
 
-        model = st.selectbox(
-            "LLM Model",
-            ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
-            index=0,
-            help="Model for answer generation"
-        )
-
         show_context = st.checkbox(
             "Show full context",
             value=False,
             help="Show complete source text instead of short preview"
         )
 
-        return top_k, model, show_context
+        # Backend status indicator
+        st.divider()
+        st.markdown("### 🔌 Backend")
+        try:
+            r = requests.get(f"{_API_BASE}/health/ready", timeout=3)
+            checks = r.json().get("checks", {}) if r.status_code in (200, 503) else {}
+            qdrant_ok = checks.get("qdrant") == "ok"
+            pg_ok = checks.get("postgres") == "ok"
+            if qdrant_ok and pg_ok:
+                st.success("✅ Operational")
+            elif r.status_code == 200:
+                st.warning("⚠️ Partial")
+            else:
+                st.warning("⚠️ Degraded")
+        except Exception:
+            st.error("❌ Unreachable")
+
+        return top_k, show_context
 
 def format_answer_with_citations(answer, sources):
-    """Format answer with inline citation links and hover tooltips"""
-    formatted_answer = answer
-
-    # Add citation styling
-    for i in range(len(sources)):
-        citation = f"[{i+1}]"
-        if citation in formatted_answer:
-            formatted_answer = formatted_answer.replace(
-                citation,
-                f'<span class="citation" title="{sources[i]["title"][:60]}...">{citation}</span>'
+    """Style [Doc N] citation markers with hover tooltips."""
+    formatted = answer
+    for i, source in enumerate(sources):
+        tag = f"[Doc {i + 1}]"
+        title = (source.get("title") or "")[:60]
+        if tag in formatted:
+            formatted = formatted.replace(
+                tag,
+                f'<span class="citation" title="{title}...">{tag}</span>',
             )
+    return formatted
 
-    return formatted_answer
 
-
-def display_sources(sources, show_context):
-    """Display sources in collapsible expandable format"""
+def display_sources(sources: list, show_context: bool) -> None:
+    """Render source cards with study-design badge and sample size."""
     st.markdown("### 📚 Sources")
 
     for idx, source in enumerate(sources, 1):
-        with st.expander(
-            f"**[{idx}] {source['title'][:70]}...**  "
-            f"(Relevance: {source['similarity']:.0%})",
-            expanded=False
-        ):
-            col1, col2, col3 = st.columns(3)
+        title = (source.get("title") or "Unknown")[:70]
+        year  = source.get("year", "")
+        design = source.get("study_design", "unknown")
+        sample_size = source.get("sample_size")
+        pmid = source.get("pmid", "")
+        authors = source.get("authors", "")
+        journal = source.get("journal", "")
+        key_finding = source.get("key_finding", "")
+
+        header = f"**[{idx}] {title}**" + (f"  ({year})" if year else "")
+
+        with st.expander(header, expanded=False):
+            col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                st.caption("**Section**")
-                st.text(source['section'])
+                st.caption("**Study Design**")
+                color = _DESIGN_COLORS.get(design, "#7f7f7f")
+                st.markdown(
+                    f"<span style='background:{color};color:white;padding:2px 8px;"
+                    f"border-radius:10px;font-size:0.8em'>"
+                    f"{design.replace('_', ' ').title()}</span>",
+                    unsafe_allow_html=True,
+                )
 
             with col2:
+                st.caption("**Sample Size**")
+                st.text(str(sample_size) if sample_size else "N/A")
+
+            with col3:
+                st.caption("**Section**")
+                st.text(source.get("section") or "N/A")
+
+            with col4:
                 st.caption("**PMID**")
-                if source['pmid']:
-                    st.markdown(f"[{source['pmid']}](https://pubmed.ncbi.nlm.nih.gov/{source['pmid']})")
+                if pmid:
+                    st.markdown(f"[{pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid})")
                 else:
                     st.text("N/A")
 
-            with col3:
-                st.caption("**DOI**")
-                st.text(source['doi'] if source['doi'] else "N/A")
+            if authors or journal:
+                st.caption(f"_{authors}. {journal} {year}_".strip(". "))
 
             st.divider()
 
             if show_context:
-                st.caption("**Full Context:**")
-                st.text(source['text_preview'])
+                st.caption("**Key Finding:**")
+                st.text(key_finding)
             else:
                 st.caption("**Preview:**")
-                st.text(source['text_preview'][:200] + "...")
+                st.text(key_finding[:200] + ("…" if len(key_finding) > 200 else ""))
 
 
-def evaluate_response_quality(retriever, query, answer, sources):
-    """Evaluate response quality on-demand"""
-    from src.evaluation import RAGEvaluator
+def evaluate_response_quality(query: str, answer: str, sources: list) -> dict:
+    """Score response quality with heuristic judges (no API call required)."""
+    from src.evaluation.judges import JudgeSet
 
-    evaluator = RAGEvaluator(rag_retriever=retriever)
+    class _Chunk:
+        def __init__(self, text: str, metadata: dict):
+            self.text = text
+            self.metadata = metadata
 
-    # Prepare context
-    context = "\n\n".join([
-        f"[Doc {i+1}]\n{source['text_preview'][:500]}"
-        for i, source in enumerate(sources)
-    ])
-
-    # Evaluate
-    faithfulness = evaluator.evaluate_faithfulness(query, answer, context)
-    relevance = evaluator.evaluate_relevance(query, answer)
-
-    # Prepare chunks for precision
-    chunks = [{'text': s['text_preview']} for s in sources]
-    precision = evaluator.evaluate_context_precision(query, chunks)
-
+    chunks = [
+        _Chunk(
+            text=s.get("key_finding", ""),
+            metadata={"evidence_level": 2, "study_design": s.get("study_design", "unknown")},
+        )
+        for s in sources
+    ]
+    scores = JudgeSet().score_all(question=query, answer=answer, chunks=chunks)
     return {
-        'faithfulness': faithfulness,
-        'relevance': relevance,
-        'precision': precision
+        "faithfulness": scores.faithfulness,
+        "relevance":    scores.answer_relevance,
+        "precision":    scores.context_precision,
     }
 
 
@@ -788,20 +858,14 @@ def main():
     st.markdown('<div class="main-header">🔬 Urological Oncology RAG System</div>', unsafe_allow_html=True)
 
     # Sidebar
-    top_k, model, show_context = display_sidebar()
+    top_k, show_context = display_sidebar()
 
     # Tabs
     tab1, tab2, tab3 = st.tabs(["💬 Query", "📊 System Performance", "ℹ️ About"])
 
-
     # Tab 1: Query Interface
     with tab1:
-        # Load RAG system
-        user_key = st.session_state.get('user_api_key')
-        retriever = load_rag_system(_api_key=user_key)
-        retriever.config.top_k = top_k
-
-       # 1. KNOWLEDGE BASE (First)
+        # 1. KNOWLEDGE BASE (First)
         st.markdown("### 📚 Knowledge Base")
 
         # Topic selector
@@ -819,9 +883,8 @@ def main():
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            if st.button("🔄 Reset Current Chat", use_container_width=True):
-                memory = st.session_state.conversation_memory
-                st.session_state.conversation = memory.create_conversation()
+            if st.button("🔄 Reset Chat", use_container_width=True):
+                st.session_state.conversation_id = str(uuid.uuid4())
                 st.session_state.current_response = None
                 st.session_state.quality_metrics = None
                 st.rerun()
@@ -829,22 +892,17 @@ def main():
         with col2:
             context_mode = st.checkbox(
                 "💬 Enable Chat Mode",
-                value=st.session_state.conversation is not None,
+                value=st.session_state.conversation_id is not None,
                 help="Multi-turn conversation with context"
             )
 
-        if context_mode and st.session_state.conversation is None:
-            memory = st.session_state.conversation_memory
-            st.session_state.conversation = memory.create_conversation()
+        if context_mode and st.session_state.conversation_id is None:
+            st.session_state.conversation_id = str(uuid.uuid4())
         elif not context_mode:
-            st.session_state.conversation = None
+            st.session_state.conversation_id = None
 
-        # Show conversation status inline
-        if st.session_state.conversation:
-            turns = len(st.session_state.conversation.messages) // 2
-            st.caption(f"💬 Active chat • {turns} turns")
-        else:
-            pass
+        if st.session_state.conversation_id:
+            st.caption("💬 Chat mode active")
 
         st.divider()
 
@@ -934,40 +992,26 @@ def main():
                 start_time = time.time()
 
                 try:
-                    # Check conversation mode
-                    if st.session_state.conversation:
-                        if st.session_state.conv_rag is None:
-                            st.session_state.conv_rag = ConversationalRAG(
-                                retriever,
-                                st.session_state.conversation_memory
-                            )
+                    cancer_filter = [] if topic_filter == "All Topics" else [topic_filter]
+                    response = _query_backend(
+                        query=query,
+                        cancer_types=cancer_filter,
+                        top_k=top_k,
+                        conversation_id=st.session_state.conversation_id,
+                    )
 
-                        response = st.session_state.conv_rag.query(
-                            question=query,
-                            conversation=st.session_state.conversation,
-                            model=model
-                        )
-
-                        rewritten_query = response.get('rewritten_query')
-                    else:
-                        response = retriever.query(
-                            question=query,
-                            model=model,
-                            return_sources=True,
-                            use_cache=True
-                        )
-                        rewritten_query = None
-
-                    latency = time.time() - start_time
+                    latency_ms = response.get("latency_ms", {})
+                    latency = latency_ms.get("total", (time.time() - start_time) * 1000) / 1000
 
                     # Store response in session state
                     st.session_state.current_response = {
                         'query': query,
-                        'answer': response['answer'],
+                        'answer': response.get('answer', ''),
                         'sources': response.get('sources', []),
-                        'num_sources': response['num_sources'],
+                        'num_sources': len(response.get('sources', [])),
                         'latency': latency,
-                        'rewritten_query': rewritten_query
+                        'evidence_quality': response.get('evidence_quality', 'insufficient'),
+                        'confidence_score': response.get('confidence_score', 0.0),
                     }
 
                     # Clear previous quality metrics
@@ -994,17 +1038,13 @@ def main():
 
             st.divider()
 
-            # Show query rewrite if conversation mode
-            if resp['rewritten_query'] and resp['rewritten_query'] != resp['query']:
-                with st.expander("🔄 Query Rewrite (Context Applied)", expanded=True):
-                    st.markdown(f"**Original:** {resp['query']}")
-                    st.markdown(f"**Expanded:** {resp['rewritten_query']}")
-
             # Display results header
-            is_cached = resp['latency'] < 0.5
-            cache_indicator = " ✨ (cached)" if is_cached else ""
-
-            st.success(f"✅ Found {resp['num_sources']} relevant sources in {resp['latency']:.2f}s{cache_indicator}")
+            eq = resp.get('evidence_quality', 'insufficient')
+            badge_html = _quality_badge_html(eq)
+            st.markdown(
+                f"✅ Found **{resp['num_sources']}** sources in **{resp['latency']:.2f}s** &nbsp; {badge_html}",
+                unsafe_allow_html=True,
+            )
 
             st.divider()
 
@@ -1017,13 +1057,10 @@ def main():
             )
             st.markdown(formatted_answer, unsafe_allow_html=True)
 
-
-             # Quality evaluation button - evaluates and switches to Metrics tab
             # Quality evaluation button - displays inline
             if st.button("🔬 Evaluate Response Quality"):
                 with st.spinner("🔬 Evaluating response quality..."):
                     metrics = evaluate_response_quality(
-                        retriever,
                         resp['query'],
                         resp['answer'],
                         resp['sources']

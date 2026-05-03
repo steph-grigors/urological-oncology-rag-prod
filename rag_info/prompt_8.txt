@@ -1,0 +1,129 @@
+Session 8 — Wire Everything Together and Make It Runnable
+==========================================================
+
+Goal: Complete the production wiring so the entire stack can be launched with a single docker-compose command.
+
+─────────────────────────────────────────────────────────────
+FILES CHANGED
+─────────────────────────────────────────────────────────────
+
+requirements.txt
+  Replaced legacy chromadb / ragas / langchain dependencies with the
+  production stack:
+    fastapi, uvicorn[standard], pydantic-settings
+    openai, anthropic, cohere, qdrant-client
+    sqlalchemy, asyncpg, alembic, langfuse
+    requests, biopython, streamlit, plotly, pandas, numpy, python-dotenv
+
+config/settings.py
+  Added:  admin_api_key: str = Field("", alias="ADMIN_API_KEY")
+
+src/api/middleware/auth.py
+  Added require_admin_api_key() dependency:
+  - Uses HMAC constant-time compare against ADMIN_API_KEY
+  - Falls back to require_api_key() when ADMIN_API_KEY is empty
+
+src/api/routes/health.py
+  Added GET /health (router root ""):
+  - Checks Qdrant via retriever._store.collection_stats()
+  - Checks Postgres via audit_logger SELECT 1
+  - Checks OpenAI via settings.openai_api_key presence
+  - Returns {"status": "ok"|"degraded", "checks": {...}}
+  Existing /live, /ready, /info routes unchanged.
+
+src/api/routes/eval.py
+  Full rewrite wiring POST /eval/run to the real evaluation runner:
+  - Requires require_admin_api_key
+  - Reads retriever and generator from request.app.state
+  - Adds background task that calls run_evaluation() via run_in_executor
+  - In-memory _runs registry stores status, aggregate scores, latency stats
+  - GET /eval/results/latest falls back to data/evaluation/latest_metrics.json
+  - GET /eval/status/:id and GET /eval/results added
+
+docker/Dockerfile
+  Multi-stage build:
+  - builder: python:3.11-slim, installs deps to /install
+  - runtime: python:3.11-slim, copies /install, curl + libpq5 only
+  - Non-root app user, HEALTHCHECK on /health/live, uvicorn 2 workers
+
+docker/docker-compose.yml
+  - api: internal env overrides for QDRANT_URL and POSTGRES_URL
+  - ui: API_BACKEND_URL=http://api:8000, hot-reload volume for rag_ui.py
+  - qdrant, postgres: health checks, named volumes
+  - langfuse: optional profile, DATABASE_URL points at shared postgres
+
+docker/.env.example
+  Comprehensive template documenting every env var with purpose,
+  acceptable values, and example values. Sections:
+  LLM keys, generation provider, reranking, app security, app env,
+  Qdrant, Postgres, Langfuse, model defaults, retrieval params,
+  chunking params, Streamlit UI.
+
+rag_ui.py
+  Rewritten from direct-retrieval to API-connected v3:
+  - Removed: OptimizedRAGRetriever, ConversationMemory, ConversationalRAG imports
+  - Added: requests, uuid imports
+  - Constants: _API_BASE, _API_KEY, _QUALITY_BADGES, _DESIGN_COLORS
+  - Session state: conversation_id (UUID string) replaces conversation_memory
+  - load_rag_system() replaced by _query_backend() and _quality_badge_html()
+  - load_evaluation_metrics() fetches from GET /eval/results/latest
+  - display_sidebar() returns (top_k, show_context); no model selector;
+    shows backend health status fetched from GET /health
+  - display_sources() rewritten for SourceCard format:
+    study_design color badge, sample_size, key_finding
+  - evaluate_response_quality() uses local JudgeSet(); signature changed
+    from (retriever, query, answer, sources) to (query, answer, sources)
+  - main() query execution block now calls _query_backend(); parses
+    evidence_quality, confidence_score, latency_ms from API response
+  - Evidence quality badge displayed in results header
+  - Conversation mode uses conversation_id UUID; Reset Chat generates
+    a new UUID; chat status shown as "Chat mode active"
+  - Query limit guard (2 free queries) preserved unchanged
+
+README.md
+  Full rewrite:
+  - ASCII architecture diagram showing all services and query path
+  - Quick start (clone → configure → docker-compose up → first query)
+  - Ingestion pipeline commands and parameters table
+  - Running tests (unit, integration, coverage, markers)
+  - Evaluation suite (API trigger, run modes table, direct CLI)
+  - Environment variable reference table (all 27 variables)
+  - API endpoint reference (POST /query, GET /health, /eval/* endpoints)
+  - Project structure tree
+
+─────────────────────────────────────────────────────────────
+KEY DESIGN DECISIONS
+─────────────────────────────────────────────────────────────
+
+ADMIN_API_KEY fallback:
+  When ADMIN_API_KEY is empty the admin routes fall back to the regular
+  API_KEYS check. This means development stacks with only API_KEYS set
+  can still trigger eval runs without a separate admin key.
+
+conversation_id as UUID string:
+  Server-side conversation tracking — the UI only stores the UUID;
+  conversation history lives in the backend. Enables stateless UI
+  containers that can restart without losing conversation context.
+
+Evidence quality badge:
+  Computed by the generation layer based on reranker confidence and
+  source agreement. Displayed in the results header so clinicians
+  immediately see reliability signal before reading the answer.
+
+Background eval with run_in_executor:
+  run_evaluation() is a synchronous function (file I/O, blocking LLM
+  calls). Wrapping it in run_in_executor keeps the FastAPI event loop
+  free while the eval run is in progress.
+
+─────────────────────────────────────────────────────────────
+STACK SUMMARY
+─────────────────────────────────────────────────────────────
+
+  docker-compose --env-file docker/.env -f docker/docker-compose.yml up
+    → api:8000   (FastAPI + uvicorn, 2 workers)
+    → ui:8501    (Streamlit, API-connected)
+    → qdrant:6333 (vector store, dense + sparse)
+    → postgres:5432 (document store, BM25, audit log)
+
+  Optional:
+    --profile langfuse  → langfuse:3000 (distributed tracing UI)

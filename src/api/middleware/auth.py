@@ -42,3 +42,26 @@ async def require_api_key(
             return key
 
     raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+async def require_admin_api_key(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> str:
+    """Require the ADMIN_API_KEY header for privileged operations (e.g. /eval/run).
+
+    Falls back to regular API key validation when no admin key is configured
+    (development convenience).
+    """
+    admin_key = settings.admin_api_key
+    if not admin_key:
+        return await require_api_key(request, settings)
+
+    key = request.headers.get(settings.api_key_header, "")
+    if not key:
+        raise HTTPException(status_code=401, detail="Missing API key")
+
+    if hmac.compare_digest(key.encode(), admin_key.encode()):
+        return key
+
+    raise HTTPException(status_code=403, detail="Admin access required")

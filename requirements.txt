@@ -1,22 +1,33 @@
-# Core dependencies
-streamlit==1.31.0
-openai==1.12.0
-chromadb==0.4.22
-python-dotenv==1.0.0
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi>=0.109.0
+uvicorn[standard]>=0.24.0
+pydantic-settings>=2.1.0
 
-# Data processing
-biopython==1.83
-requests==2.31.0
+# ── LLM providers ─────────────────────────────────────────────────────────────
+openai>=1.12.0
+anthropic>=0.18.0
 
-# Visualization
-plotly==5.18.0
-pandas==2.2.0
+# ── Retrieval ──────────────────────────────────────────────────────────────────
+cohere>=4.40.0
+qdrant-client>=1.7.0
 
-# Evaluation
-datasets==2.16.1
-ragas==0.1.5
-langchain==0.1.5
-langchain-openai==0.0.5
+# ── Database ───────────────────────────────────────────────────────────────────
+sqlalchemy>=2.0.0
+asyncpg>=0.29.0          # async Postgres driver
+alembic>=1.13.0          # schema migrations
 
-# Utilities
-numpy==1.26.3
+# ── Observability ──────────────────────────────────────────────────────────────
+langfuse>=2.7.0          # distributed tracing (graceful if absent)
+
+# ── Data processing ────────────────────────────────────────────────────────────
+requests>=2.31.0
+biopython>=1.83          # NCBI E-utilities XML parsing
+
+# ── UI / visualisation ─────────────────────────────────────────────────────────
+streamlit>=1.28.0
+plotly>=5.17.0
+pandas>=2.1.0
+
+# ── Utilities ──────────────────────────────────────────────────────────────────
+numpy>=1.24.0
+python-dotenv>=1.0.0

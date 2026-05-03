@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     log_level: str = Field("INFO", alias="LOG_LEVEL")
     api_key_header: str = Field("X-API-Key", alias="API_KEY_HEADER")
     api_keys: list[str] = Field(default_factory=list, alias="API_KEYS")
+    admin_api_key: str = Field("", alias="ADMIN_API_KEY")
     rate_limit_per_minute: int = Field(60, alias="RATE_LIMIT_PER_MINUTE", ge=1)
 
     @field_validator("chunk_overlap_words")
