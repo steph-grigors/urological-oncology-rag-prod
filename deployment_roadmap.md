@@ -44,6 +44,8 @@ Wait for both to pass their health checks before proceeding. You can verify:
 docker ps  # both should show "healthy"
 ```
 
+> **Note — Qdrant healthcheck:** `qdrant/qdrant:v1.9.0` ships neither `curl` nor `wget`. The healthcheck in `docker-compose.yml` uses a bash TCP probe (`bash -c 'exec 3<>/dev/tcp/localhost/6333'`) instead. This is intentional — do not replace it with a `curl`-based check.
+
 ---
 
 ## Step 3 — Apply Postgres schema
@@ -52,7 +54,7 @@ Run the Alembic migration to create all five tables (`papers`, `chunks`, `audit_
 
 ```bash
 # Temporarily point at localhost (Postgres is port-forwarded from docker)
-POSTGRES_URL="postgresql://rag:rag@localhost:5432/rag" alembic upgrade head
+POSTGRES_URL="postgresql://rag:rag@localhost:5432/rag" python -m alembic upgrade head
 ```
 
 Expected output: `Running upgrade -> 001, initial schema`
@@ -67,7 +69,7 @@ The raw papers are already in `data/papers_fulltext/` and processed chunks in `d
 # Incremental mode — picks up from data/ without re-fetching from PMC
 python -m src.ingestion.pipeline --mode incremental
 
-# Full mode — re-fetches from PubMed Central + re-embeds (expensive: ~$2-5 in OpenAI costs)
+# Full mode — re-fetches from PubMed Central + re-embeds (~$0.45 in OpenAI costs, ~30 min)
 python -m src.ingestion.pipeline --mode full
 ```
 
@@ -180,6 +182,5 @@ Before sharing the deployment with anyone else:
 
 | Gap | Impact | Notes |
 |-----|--------|-------|
-| `rank_bm25` not in `requirements.txt` | High — BM25 search will fail at startup | Add `rank_bm25>=0.2.2` to `requirements.txt` before building the Docker image |
 | Rate limiter not Redis-backed | Medium — multi-instance deployments lose per-IP state | Single container: not a blocker |
 | No golden set expansion | Low | `tests/fixtures/golden_queries.json` has minimal fixture queries; add real clinical questions before running a `full` eval |

@@ -65,6 +65,8 @@ _BASE = dict(
     study_design="rct",
     sample_size=120,
     primary_outcome="Overall survival at 3 years",
+    intervention="enzalutamide 160 mg/day",
+    comparator="placebo",
     evidence_level=EVIDENCE_LEVELS["rct"],
 )
 
@@ -132,9 +134,10 @@ class TestNormalizeSection:
 class TestShortSection:
     """Sections at or below SHORT_SECTION_THRESHOLD words → single chunk."""
 
-    def test_one_word_is_single_chunk(self):
+    def test_one_word_below_min_chunk_words_is_dropped(self):
+        # 1 word < MIN_CHUNK_WORDS (30) — filtered by the minimum length guard
         chunks = chunk_section(_section("sunitinib"), _BASE, start_index=0)
-        assert len(chunks) == 1
+        assert len(chunks) == 0
 
     def test_below_threshold_is_single_chunk(self):
         chunks = chunk_section(
@@ -329,6 +332,7 @@ class TestMetadataFields:
         "pmid", "pmcid", "title", "authors", "journal", "year",
         "cancer_type", "section", "chunk_type", "chunk_index",
         "study_design", "sample_size", "primary_outcome", "evidence_level",
+        "intervention", "comparator",
     })
 
     def _first_chunk(self) -> Chunk:
@@ -471,7 +475,10 @@ class TestIncrementalMode:
         assert "PMC001" in fetch_calls
 
     def test_checkpoint_updated_after_successful_paper(self, tmp_path, monkeypatch):
-        """After processing a paper the checkpoint file gains its PMC ID."""
+        """Checkpoint is written only after a successful embed.
+        With no embedding clients the paper must NOT be checkpointed so
+        a subsequent run with clients will re-process and embed it.
+        """
         import src.ingestion.parse as parse_mod
         from src.ingestion.parse import ParsedPaper, Section
 
@@ -498,20 +505,21 @@ class TestIncrementalMode:
             "src.ingestion.pipeline.fetch_batch",
             lambda ids, **kw: iter([("PMC42", "<xml/>")]),
         )
-        # Pipeline imports parse_paper from src.ingestion.parse inside the loop
         monkeypatch.setattr(parse_mod, "parse_paper", lambda xml: fake_paper)
 
         from src.ingestion.pipeline import run_ingestion
         run_ingestion(
             topics=["prostate"],
             checkpoint_path=str(checkpoint),
+            skip_low_quality=False,
             dry_run=False,
-            openai_client=None,
+            openai_client=None,   # no clients → embed skipped → no checkpoint
             qdrant_client=None,
         )
 
+        # Paper must NOT be checkpointed — it was never embedded into Qdrant
         saved = json.loads(checkpoint.read_text())
-        assert "PMC42" in saved["ingested_ids"]
+        assert "PMC42" not in saved["ingested_ids"]
 
 
 # ── Dry-run guard ─────────────────────────────────────────────────────────────

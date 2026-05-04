@@ -92,7 +92,7 @@ def embed_chunks(
                     payload={
                         **_metadata_dict(chunk.metadata),
                         "chunk_id": chunk.id,
-                        "text": chunk.text[:2000],
+                        "text": chunk.text,
                     },
                 )
             )

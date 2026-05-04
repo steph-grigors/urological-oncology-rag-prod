@@ -5,11 +5,15 @@ After RRF fusion produces the top-20 candidates, the reranker scores each
 (query, chunk) pair with a cross-encoder that outperforms bi-encoder
 cosine similarity for relevance judgements.
 
-Final score formula (study-design weighted):
-    final_score = relevance_score^0.8 * study_design_weight^0.2
+Final score formula (study-design + recency weighted):
+    final_score = relevance_score^0.70 * study_design_weight^0.15 * recency_weight^0.15
 
-This gives mild preference to higher-evidence sources at equal semantic
-relevance without overriding a directly relevant lower-evidence chunk.
+Weights sum to 1.0 (weighted geometric mean). Relevance dominates; study
+design and recency provide a tie-breaking nudge without overriding a directly
+relevant chunk from an older or lower-evidence source.
+
+Recency tiers (years before current year → weight):
+    0–2  → 1.00   3–5  → 0.90   6–10 → 0.80   11–15 → 0.70   >15 → 0.60
 
 Graceful degradation:
     If COHERE_API_KEY is empty or the API call fails, chunks are returned
@@ -18,6 +22,7 @@ Graceful degradation:
 
 from __future__ import annotations
 
+import datetime
 import logging
 import time
 from dataclasses import dataclass, field
@@ -100,7 +105,8 @@ class CohereReranker:
                 chunk = chunks[result.index]
                 rel = float(result.relevance_score)
                 design_weight = _design_weight(chunk)
-                final_score = rel ** 0.8 * design_weight ** 0.2
+                recency_weight = _recency_weight(chunk)
+                final_score = rel ** 0.70 * design_weight ** 0.15 * recency_weight ** 0.15
                 ranked.append(RankedChunk(
                     chunk_id=chunk.chunk_id,
                     text=chunk.text,
@@ -121,6 +127,26 @@ def _design_weight(chunk: ScoredChunk) -> float:
     design = chunk.metadata.get("study_design", "unknown")
     # constants.py uses verbose names; ingestion uses short codes — check both
     return STUDY_DESIGN_WEIGHTS.get(design, STUDY_DESIGN_WEIGHTS.get("unknown", 0.5))
+
+
+def _recency_weight(chunk: ScoredChunk) -> float:
+    """Return a weight in [0.60, 1.00] based on how recent the paper is."""
+    year = chunk.metadata.get("year")
+    if not year:
+        return 0.75  # unknown year: neutral
+    try:
+        age = datetime.datetime.now().year - int(year)
+    except (ValueError, TypeError):
+        return 0.75
+    if age <= 2:
+        return 1.00
+    if age <= 5:
+        return 0.90
+    if age <= 10:
+        return 0.80
+    if age <= 15:
+        return 0.70
+    return 0.60
 
 
 def _passthrough(chunks: list[ScoredChunk], top_n: int) -> list[RankedChunk]:

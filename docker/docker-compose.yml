@@ -68,7 +68,7 @@ services:
 
   # ── Qdrant vector store ───────────────────────────────────────────────────────
   qdrant:
-    image: qdrant/qdrant:v1.9.0
+    image: qdrant/qdrant:v1.17.0
     container_name: uro-rag-qdrant
     volumes:
       - qdrant_storage:/qdrant/storage
@@ -76,7 +76,7 @@ services:
       - "6333:6333"   # REST API
       - "6334:6334"   # gRPC
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/6333' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -103,6 +103,37 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    restart: unless-stopped
+    networks:
+      - rag-net
+
+  # ── Weekly incremental ingestion ─────────────────────────────────────────────
+  #
+  # Runs every Sunday at 02:00 UTC. Fetches papers published since the previous
+  # Sunday and adds them to Qdrant + checkpoints. Uses ofelia as a Docker-native
+  # cron scheduler (no host crontab needed).
+  #
+  # Start with:  docker-compose --profile ingestion-cron up
+  ingestion-cron:
+    image: mcuadros/ofelia:latest
+    container_name: uro-rag-ingestion-cron
+    profiles: [ingestion-cron]
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: daemon --docker
+    labels:
+      ofelia.job-run.weekly-ingestion.schedule: "0 2 * * 0"   # Sunday 02:00 UTC
+      ofelia.job-run.weekly-ingestion.container: "uro-rag-api"
+      ofelia.job-run.weekly-ingestion.command: >
+        python -m src.ingestion.pipeline
+        --mode incremental
+        --since-date $(date -d '7 days ago' +%Y/%m/%d)
+        --limit 2000
     restart: unless-stopped
     networks:
       - rag-net
