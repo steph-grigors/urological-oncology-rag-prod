@@ -11,6 +11,7 @@ import logging
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import date
 from typing import Iterator
 
 import requests
@@ -54,69 +55,111 @@ def search_pmc(
 ) -> list[str]:
     """Return a list of PMC IDs matching the query.
 
-    Uses NCBI's history server (usehistory=y + WebEnv pagination) to bypass
-    the 10,000-result-per-request cap.  Results are fetched in pages of 9,999
-    until max_results is reached or the server has no more IDs.
+    NCBI's esearch hard-caps retstart at 9,998 per query. For topics with more
+    than 9,999 results the function automatically splits the search into
+    year-by-year windows so each window stays within the cap, then deduplicates
+    and returns up to max_results IDs.
     """
-    base_params: dict = {
+    # ── Step 1: get total count for the full date range ───────────────────
+    count_params: dict = {
         "db": "pmc",
         "term": query,
-        "usehistory": "y",      # register result set server-side
-        "retmax": 0,            # first call: just get count + WebEnv
+        "retmax": 0,
         "retmode": "json",
     }
     if date_range:
-        base_params["mindate"] = date_range[0]
-        base_params["maxdate"] = date_range[1]
-        base_params["datetype"] = "pdat"
+        count_params["mindate"] = date_range[0]
+        count_params["maxdate"] = date_range[1]
+        count_params["datetype"] = "pdat"
     if ncbi_api_key:
-        base_params["api_key"] = ncbi_api_key
+        count_params["api_key"] = ncbi_api_key
 
-    # ── Step 1: register query, get total count + WebEnv ─────────────────
-    data = _get_json(f"{_BASE_URL}/esearch.fcgi", base_params)
-    result = data.get("esearchresult", {})
-    total = int(result.get("count", 0))
-    web_env = result.get("webenv", "")
-    query_key = result.get("querykey", "")
+    count_data = _get_json(f"{_BASE_URL}/esearch.fcgi", count_params)
+    total = int(count_data.get("esearchresult", {}).get("count", 0))
+    logger.info("search_pmc query=%r total_on_server=%d", query, total)
 
-    if not web_env or not query_key:
-        # Fallback: single-page fetch without history server
-        ids = result.get("idlist", [])
-        logger.info("search_pmc (no history) query=%r found %d IDs", query, len(ids))
-        return [f"PMC{i}" for i in ids[:max_results]]
+    # ── Step 2: choose strategy ───────────────────────────────────────────
+    if total <= _PAGE_SIZE:
+        # Under the cap — single fetch is sufficient.
+        windows = [date_range]
+    else:
+        # Over the cap — split into year-by-year windows.
+        start_year = int((date_range[0] if date_range else "2000/01/01").split("/")[0])
+        end_year = date.today().year
+        windows = [
+            (f"{y}/01/01", f"{y}/12/31")
+            for y in range(start_year, end_year + 1)
+        ]
+        logger.info(
+            "search_pmc: total %d > 9999 cap — splitting into %d yearly windows",
+            total, len(windows),
+        )
 
-    to_fetch = min(total, max_results)
-    logger.info(
-        "search_pmc query=%r total_on_server=%d fetching=%d", query, total, to_fetch
-    )
-
-    # ── Step 2: paginate through results ─────────────────────────────────
+    # ── Step 3: fetch each window ─────────────────────────────────────────
+    seen: set[str] = set()
     all_ids: list[str] = []
-    retstart = 0
 
-    while retstart < to_fetch:
-        page_size = min(_PAGE_SIZE, to_fetch - retstart)
-        page_params: dict = {
-            "db": "pmc",
-            "query_key": query_key,
-            "WebEnv": web_env,
-            "retstart": retstart,
-            "retmax": page_size,
-            "retmode": "json",
-        }
-        if ncbi_api_key:
-            page_params["api_key"] = ncbi_api_key
-
-        page_data = _get_json(f"{_BASE_URL}/esearch.fcgi", page_params)
-        page_ids = page_data.get("esearchresult", {}).get("idlist", [])
-
-        if not page_ids:
+    for win_start, win_end in windows:
+        if len(all_ids) >= max_results:
             break
 
-        all_ids.extend(page_ids)
-        retstart += len(page_ids)
-        logger.debug("search_pmc page retstart=%d fetched=%d total_so_far=%d",
-                     retstart - len(page_ids), len(page_ids), len(all_ids))
+        params: dict = {
+            "db": "pmc",
+            "term": query,
+            "usehistory": "y",
+            "retmax": 0,
+            "retmode": "json",
+            "datetype": "pdat",
+            "mindate": win_start,
+            "maxdate": win_end,
+        }
+        if ncbi_api_key:
+            params["api_key"] = ncbi_api_key
+
+        data = _get_json(f"{_BASE_URL}/esearch.fcgi", params)
+        result = data.get("esearchresult", {})
+        win_total = int(result.get("count", 0))
+        web_env = result.get("webenv", "")
+        query_key = result.get("querykey", "")
+
+        if not win_total:
+            continue
+
+        if not web_env or not query_key:
+            for pid in result.get("idlist", []):
+                if pid not in seen and len(all_ids) < max_results:
+                    seen.add(pid)
+                    all_ids.append(pid)
+            continue
+
+        # Paginate within this window (safe: each window is ≤ 9,999)
+        retstart = 0
+        while retstart < win_total and len(all_ids) < max_results:
+            page_size = min(_PAGE_SIZE, win_total - retstart, max_results - len(all_ids))
+            page_params: dict = {
+                "db": "pmc",
+                "query_key": query_key,
+                "WebEnv": web_env,
+                "retstart": retstart,
+                "retmax": page_size,
+                "retmode": "json",
+            }
+            if ncbi_api_key:
+                page_params["api_key"] = ncbi_api_key
+
+            page_data = _get_json(f"{_BASE_URL}/esearch.fcgi", page_params)
+            page_ids = page_data.get("esearchresult", {}).get("idlist", [])
+            if not page_ids:
+                break
+
+            for pid in page_ids:
+                if pid not in seen and len(all_ids) < max_results:
+                    seen.add(pid)
+                    all_ids.append(pid)
+            retstart += len(page_ids)
+
+        logger.debug("search_pmc window=%s/%s win_total=%d collected_so_far=%d",
+                     win_start, win_end, win_total, len(all_ids))
 
     logger.info("search_pmc query=%r fetched %d / %d IDs", query, len(all_ids), total)
     return [f"PMC{i}" for i in all_ids]
