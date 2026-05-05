@@ -33,7 +33,7 @@ _PROGRESS_PATH = "data/ingestion_progress.json"
 # topic. Keeps memory bounded and ensures the checkpoint always reflects what
 # is actually in Qdrant (avoids silent data loss on crash-resume).
 _EMBED_BATCH_SIZE = 50
-_META_WORKERS = 5  # parallel threads for GPT-4o-mini metadata extraction
+_META_WORKERS = 2  # parallel threads for GPT-4o-mini metadata extraction
 
 
 @dataclass

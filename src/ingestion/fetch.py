@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 _DEFAULT_RATE = 3    # req/sec without API key
-_MAX_RETRIES = 4
+_MAX_RETRIES = 6
 _RETRY_BASE = 2.0    # seconds; actual wait = _RETRY_BASE ** attempt
 
 # Publication-type filter: only high-evidence study designs relevant to clinical practice.
@@ -189,7 +189,14 @@ def _get_json(url: str, params: dict) -> dict:
         try:
             resp = requests.get(url, params=params, timeout=15)
             resp.raise_for_status()
-            return resp.json()
+            try:
+                return resp.json()
+            except ValueError:
+                # NCBI occasionally embeds control characters that invalidate JSON.
+                # Strip them and retry the parse before giving up on this attempt.
+                import re
+                sanitized = re.sub(r"[\x00-\x1f\x7f]", "", resp.text)
+                return json.loads(sanitized)
         except (requests.RequestException, ValueError) as exc:
             wait = _RETRY_BASE ** attempt
             logger.warning("_get_json %s exc=%s, retry in %.1fs", url, exc, wait)
