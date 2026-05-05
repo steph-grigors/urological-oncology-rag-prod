@@ -36,7 +36,9 @@ venv/
 *.bak
 *~
 
-# Don't upload raw intermediate data (too large)
-# Note: We keep processed_fulltext for reference
-# data/papers_fulltext/
-# data/processed_fulltext/
+# Data directory — operational/runtime files, not versioned
+data/ingestion_state.json
+data/ingestion_rejected.json
+data/ingestion_progress.json
+data/ingestion_progress.tmp
+data/metadata_cache.json
