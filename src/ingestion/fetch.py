@@ -6,7 +6,9 @@ Replaces `data_collection_scaled.py` with a cleaner, async-capable interface.
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Iterator
@@ -194,7 +196,6 @@ def _get_json(url: str, params: dict) -> dict:
             except ValueError:
                 # NCBI occasionally embeds control characters that invalidate JSON.
                 # Strip them and retry the parse before giving up on this attempt.
-                import re
                 sanitized = re.sub(r"[\x00-\x1f\x7f]", "", resp.text)
                 return json.loads(sanitized)
         except (requests.RequestException, ValueError) as exc:
