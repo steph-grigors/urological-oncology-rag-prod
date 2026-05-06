@@ -244,10 +244,10 @@ def display_sidebar():
 
         # API Key input
         user_api_key = st.text_input(
-            "OpenAI API Key",
+            "Access Key",
             type="password",
-            placeholder="sk-...",
-            help="Enter your key for unlimited usage. Leave empty for 2 free queries.",
+            placeholder="Provided by administrator",
+            help="Enter the access key provided to you. Leave empty for 2 free demo queries.",
             key="api_key_input"
         )
 
@@ -562,8 +562,8 @@ def display_about_tab():
         # What is This?
         st.subheader("💡 What is This?")
         st.write("""
-        An AI-powered research assistant that provides evidence-based answers from 815
-        peer-reviewed papers across 4 urological cancer types. Uses advanced RAG
+        An AI-powered research assistant that provides evidence-based answers from 20,000+
+        peer-reviewed papers across 6 urological cancer types. Uses advanced RAG
         architecture to deliver accurate, cited responses with zero hallucination.
         """)
 
@@ -587,7 +587,7 @@ def display_about_tab():
             <div style='text-align: center;'>
                 <div style='font-size: 2rem;'>🔍</div>
                 <div style='font-weight: bold;'>Search</div>
-                <div style='font-size: 0.8rem; color: #666;'>41K+ chunks</div>
+                <div style='font-size: 0.8rem; color: #666;'>685K+ chunks</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -616,10 +616,11 @@ def display_about_tab():
 
         with st.expander("📚 Comprehensive Knowledge Base", expanded=False):
             st.write("""
-            - **815 full-text papers** from PubMed Central Open Access
-            - **4 cancer types:** Prostate, Bladder, Kidney, Testicular
-            - **41,970 section-aware chunks** for precise retrieval
-            - **Years covered:** 2015-2025 (latest research)
+            - **20,000+ full-text papers** from PubMed Central Open Access
+            - **6 cancer types:** Prostate, Bladder, Kidney, Testicular, Penile, Adrenal
+            - **685,000+ section-aware chunks** for precise retrieval
+            - **Years covered:** 2010–2025 (latest high-evidence research)
+            - **Filtered corpus:** RCTs, meta-analyses, systematic reviews, clinical guidelines only
             """)
 
         with st.expander("🎯 Advanced RAG Pipeline", expanded=False):
@@ -675,11 +676,10 @@ def display_about_tab():
 
         with usage_col2:
             st.markdown("""
-            **🔐 Your API Key**
+            **🔐 Access Key**
             - Unlimited queries
-            - ~$0.01 per search
-            - Priority access
-            - [Get free key →](https://platform.openai.com/api-keys)
+            - Contact administrator
+            - Full feature access
             """)
 
     # ========================================
@@ -691,14 +691,14 @@ def display_about_tab():
 
         stat_col1, stat_col2 = st.columns(2)
         with stat_col1:
-            st.metric("Papers", "815", help="Full-text peer-reviewed articles")
-            st.metric("Chunks", "41,970", help="Section-aware segments")
-            st.metric("Avg Latency", "~7.2s", help="Query response time")
+            st.metric("Papers", "20,000+", help="Full-text peer-reviewed articles")
+            st.metric("Chunks", "685,000+", help="Section-aware segments")
+            st.metric("Avg Latency", "~7s", help="Query response time")
 
         with stat_col2:
-            st.metric("Topics", "4", help="Cancer types covered")
-            st.metric("Quality", "97.5%", help="Overall system quality")
-            st.metric("Faithfulness", "100%", help="Zero hallucination")
+            st.metric("Topics", "6", help="Cancer types covered")
+            st.metric("Evidence Filter", "RCT+", help="High-evidence studies only")
+            st.metric("Years", "2010–2025", help="Publication range")
 
         st.markdown("---")
 
@@ -726,12 +726,13 @@ def display_about_tab():
 
         st.markdown("""
         <div style='display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0;'>
-            <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>Python 3.11</span>
+            <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>Python 3.10</span>
             <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>OpenAI</span>
             <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>GPT-4o-mini</span>
-            <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>ChromaDB</span>
-            <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>LangChain</span>
+            <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>Qdrant</span>
+            <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>FastAPI</span>
             <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>BioPython</span>
+            <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>Cohere</span>
             <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>Streamlit</span>
             <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>Plotly</span>
             <span style='background: #1f77b4; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem;'>Docker</span>
@@ -772,34 +773,49 @@ def display_about_tab():
     # Data Sources
     st.subheader("📖 Data Sources")
 
-    source_col1, source_col2, source_col3, source_col4 = st.columns(4)
+    source_col1, source_col2, source_col3 = st.columns(3)
+    source_col4, source_col5, source_col6 = st.columns(3)
 
     with source_col1:
         st.markdown("""
         **Prostate Cancer**
-        - 250 papers
-        - 13,541 chunks
+        - 8,796 papers
+        - 233,428 chunks
         """)
 
     with source_col2:
         st.markdown("""
         **Bladder Cancer**
-        - 250 papers
-        - 13,152 chunks
+        - 4,779 papers
+        - 119,908 chunks
         """)
 
     with source_col3:
         st.markdown("""
         **Kidney Cancer**
-        - 250 papers
-        - 12,777 chunks
+        - 5,244 papers
+        - 129,176 chunks
         """)
 
     with source_col4:
         st.markdown("""
         **Testicular Cancer**
-        - 65 papers
-        - 2,500 chunks
+        - 686 papers
+        - 16,140 chunks
+        """)
+
+    with source_col5:
+        st.markdown("""
+        **Adrenal Cancer**
+        - 1,185 papers
+        - 26,801 chunks
+        """)
+
+    with source_col6:
+        st.markdown("""
+        **Penile Cancer**
+        - 255 papers
+        - 5,789 chunks
         """)
 
     st.caption("All papers sourced from PubMed Central Open Access Subset")
@@ -871,7 +887,7 @@ def main():
         # Topic selector
         topic_filter = st.selectbox(
             "Search in:",
-            ["All Topics", "Prostate Cancer", "Bladder Cancer", "Kidney Cancer", "Testicular Cancer"],
+            ["All Topics", "Prostate Cancer", "Bladder Cancer", "Kidney Cancer", "Testicular Cancer", "Penile Cancer", "Adrenal Cancer"],
             index=0,
             help="Filter by cancer type (auto-detects by default)"
         )
@@ -976,11 +992,10 @@ def main():
             if not user_has_key and free_queries_used >= 2:
                 st.error("⚠️ **Free queries limit reached!**")
                 st.info("""
-                You've used your 2 free queries. To continue:
+                You've used your 2 free demo queries. To continue:
 
-                1. 🔑 Enter your OpenAI API key in the sidebar
-                2. 🌐 Get a key at: https://platform.openai.com/api-keys
-                3. 💰 Free tier includes $5 credit for new users
+                1. 🔑 Enter your access key in the sidebar
+                2. 📧 Contact the administrator to obtain a key
                 """)
                 st.stop()
 
@@ -992,7 +1007,9 @@ def main():
                 start_time = time.time()
 
                 try:
-                    cancer_filter = [] if topic_filter == "All Topics" else [topic_filter]
+                    cancer_filter = [] if topic_filter == "All Topics" else [
+                        topic_filter.lower().replace(" cancer", "").strip()
+                    ]
                     response = _query_backend(
                         query=query,
                         cancer_types=cancer_filter,

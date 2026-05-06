@@ -9,16 +9,24 @@ Usage:
     # Build from a pre-loaded list of ScoredChunk objects
     bm25 = BM25Search(chunks)
 
-    # Or load the entire Qdrant collection at startup
+    # Or load the entire Qdrant collection at startup (with disk cache)
     bm25 = BM25Search.from_qdrant(store)
 
     results = bm25.search("enzalutamide progression-free survival", top_k=20)
+
+Disk cache:
+    The tokenized corpus is persisted to BM25_CACHE_PATH (default
+    data/bm25_cache.pkl) so restarts load in seconds instead of scrolling
+    685K chunks from Qdrant.  Call save() after (re-)building to update it.
+    The cache is invalidated automatically when the Qdrant point count changes.
 """
 
 from __future__ import annotations
 
+import logging
+import pickle
 import re
-from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -28,6 +36,10 @@ from src.db.vector_store import ScoredChunk
 
 if TYPE_CHECKING:
     from src.db.vector_store import QdrantStore
+
+logger = logging.getLogger(__name__)
+
+BM25_CACHE_PATH = "data/bm25_cache.pkl"
 
 
 # ── Tokeniser (shared with sparse vector helpers) ─────────────────────────────
@@ -44,9 +56,10 @@ class BM25Search:
     """
     In-memory BM25 index over all indexed chunks.
 
-    The index is built once at startup and held in memory.  For a 41 K-chunk
-    corpus the index is ~50–100 MB — well within typical server RAM.
-    Re-index after large ingestion runs by calling `build(chunks)` again.
+    The index is built once at startup and held in memory.  The tokenized
+    corpus is persisted to disk (BM25_CACHE_PATH) so restarts load in seconds
+    instead of re-scrolling Qdrant.  The cache is invalidated when the Qdrant
+    point count no longer matches the cached count.
     """
 
     def __init__(self, chunks: list[ScoredChunk]) -> None:
@@ -56,10 +69,65 @@ class BM25Search:
             self.build(chunks)
 
     @classmethod
-    def from_qdrant(cls, store: "QdrantStore") -> "BM25Search":
-        """Scroll the full Qdrant collection and build the index."""
+    def from_qdrant(
+        cls,
+        store: "QdrantStore",
+        cache_path: str = BM25_CACHE_PATH,
+    ) -> "BM25Search":
+        """Load BM25 from disk cache if valid, otherwise scroll Qdrant and save."""
+        live_count = store.count()
+        cached = cls._load_cache(cache_path, live_count)
+        if cached is not None:
+            logger.info("BM25 loaded from cache (%d chunks)", cached.size)
+            return cached
+
+        logger.info("BM25 cache miss (live=%d) — scrolling Qdrant…", live_count)
         chunks = store.scroll_all()
-        return cls(chunks)
+        instance = cls(chunks)
+        instance.save(cache_path, live_count)
+        return instance
+
+    # ── Disk cache ────────────────────────────────────────────────────────
+
+    def save(self, cache_path: str = BM25_CACHE_PATH, count: int | None = None) -> None:
+        """Persist the index to disk.  count is stored for invalidation."""
+        try:
+            path = Path(cache_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "count": count if count is not None else len(self._chunks),
+                "chunks": self._chunks,
+                "bm25": self._bm25,
+            }
+            tmp = path.with_suffix(".tmp")
+            with tmp.open("wb") as f:
+                pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
+            tmp.rename(path)
+            logger.info("BM25 cache saved to %s (%d chunks)", cache_path, len(self._chunks))
+        except Exception as exc:
+            logger.warning("Could not save BM25 cache: %s", exc)
+
+    @classmethod
+    def _load_cache(cls, cache_path: str, live_count: int) -> "BM25Search | None":
+        path = Path(cache_path)
+        if not path.exists():
+            return None
+        try:
+            with path.open("rb") as f:
+                payload = pickle.load(f)
+            if payload.get("count") != live_count:
+                logger.info(
+                    "BM25 cache stale (cached=%d, live=%d)",
+                    payload.get("count"), live_count,
+                )
+                return None
+            instance = cls.__new__(cls)
+            instance._chunks = payload["chunks"]
+            instance._bm25 = payload["bm25"]
+            return instance
+        except Exception as exc:
+            logger.warning("Could not load BM25 cache: %s", exc)
+            return None
 
     # ── Index management ──────────────────────────────────────────────────
 

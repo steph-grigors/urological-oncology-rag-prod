@@ -260,6 +260,10 @@ class QdrantStore:
             offset = next_offset
         return chunks
 
+    def count(self) -> int:
+        """Return the current number of points in the collection."""
+        return self._client.count(collection_name=self._collection).count
+
     def collection_stats(self) -> dict:
         """Return point count and collection configuration summary."""
         count = self._client.count(collection_name=self._collection).count

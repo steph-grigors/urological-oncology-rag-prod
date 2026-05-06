@@ -45,9 +45,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 
 EXPOSE 8000
 
-# 2 workers is appropriate for a CPU-bound RAG workload on a single container
+# Single worker locally (WSL2 RAM constraint); scale to 2-4 on the cloud VPS
 CMD ["uvicorn", "src.api.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
-     "--workers", "2", \
+     "--workers", "1", \
      "--log-level", "info"]

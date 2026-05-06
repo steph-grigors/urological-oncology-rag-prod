@@ -127,8 +127,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS
-    allowed_origins = ["*"] if settings.app_env == "development" else []
+    # CORS — development: wildcard; production: explicit whitelist via CORS_ORIGINS
+    if settings.app_env == "development":
+        allowed_origins = ["*"]
+    else:
+        allowed_origins = settings.cors_origins  # e.g. ["https://your-hf-space.hf.space"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,

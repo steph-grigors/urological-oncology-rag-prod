@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     api_keys: list[str] = Field(default_factory=list, alias="API_KEYS")
     admin_api_key: str = Field("", alias="ADMIN_API_KEY")
     rate_limit_per_minute: int = Field(60, alias="RATE_LIMIT_PER_MINUTE", ge=1)
+    cors_origins: list[str] = Field(default_factory=list, alias="CORS_ORIGINS")
 
     @field_validator("chunk_overlap_words")
     @classmethod
