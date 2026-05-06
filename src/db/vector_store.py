@@ -207,7 +207,6 @@ class QdrantStore:
         results = self._client.query_points(
             collection_name=self._collection,
             query=query_embedding,
-            using=DENSE_VECTOR,
             query_filter=_build_filter(filters),
             limit=top_k,
             with_payload=True,
