@@ -163,6 +163,19 @@ class BM25Search:
         if not query_tokens:
             return []
 
+        # For long queries, keep only the top-N tokens by IDF score.
+        # High-IDF tokens are rare in the corpus = most clinically specific.
+        # This caps BM25 scoring cost at O(N × corpus_size) regardless of query length.
+        _MAX_TOKENS = 20
+        unique_tokens = list(dict.fromkeys(query_tokens))
+        if len(unique_tokens) > _MAX_TOKENS:
+            unique_tokens = sorted(
+                unique_tokens,
+                key=lambda t: self._bm25.idf.get(t, 0.0),
+                reverse=True,
+            )[:_MAX_TOKENS]
+            query_tokens = unique_tokens
+
         scores: np.ndarray = self._bm25.get_scores(query_tokens)
 
         # score == 0.0 means the document contains none of the query tokens.

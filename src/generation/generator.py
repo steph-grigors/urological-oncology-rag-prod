@@ -11,7 +11,13 @@ from typing import TYPE_CHECKING
 
 from config.constants import MAX_ANSWER_TOKENS
 from src.generation.confidence import ConfidenceGate, compute_confidence, gate
-from src.generation.prompts import LOW_CONFIDENCE_REFUSAL, SYSTEM_PROMPT, build_prompt
+from src.generation.prompts import (
+    FALLBACK_DISCLAIMER,
+    FALLBACK_USER_TEMPLATE,
+    LOW_CONFIDENCE_REFUSAL,
+    SYSTEM_PROMPT,
+    build_prompt,
+)
 
 if TYPE_CHECKING:
     from src.generation.llm_client import LLMClient
@@ -47,18 +53,7 @@ class ClinicalGenerator:
     ) -> GenerationResult:
         confidence_result = compute_confidence(ranked_chunks)
         confidence_gate = gate(confidence_result.score)
-
-        if confidence_gate == ConfidenceGate.REFUSED:
-            return GenerationResult(
-                answer=LOW_CONFIDENCE_REFUSAL,
-                citations=[],
-                evidence_quality="insufficient",
-                model_used="",
-                provider="",
-                prompt_tokens=0,
-                completion_tokens=0,
-                confidence_score=confidence_result.score,
-            )
+        active_system_prompt = system_prompt if system_prompt is not None else SYSTEM_PROMPT
 
         if self._llm is None:
             return GenerationResult(
@@ -72,6 +67,29 @@ class ClinicalGenerator:
                 confidence_score=confidence_result.score,
             )
 
+        if confidence_gate == ConfidenceGate.REFUSED:
+            fallback_messages = [
+                {"role": "user", "content": FALLBACK_USER_TEMPLATE.format(question=query)}
+            ]
+            if conversation_history:
+                fallback_messages = conversation_history[-10:] + fallback_messages
+            start = time.monotonic()
+            response = self._llm.complete(
+                active_system_prompt, fallback_messages, max_tokens=MAX_ANSWER_TOKENS
+            )
+            latency_ms = (time.monotonic() - start) * 1000
+            return GenerationResult(
+                answer=FALLBACK_DISCLAIMER + response.content,
+                citations=[],
+                evidence_quality="insufficient",
+                model_used=response.model,
+                provider=self._llm.provider,
+                prompt_tokens=response.input_tokens,
+                completion_tokens=response.output_tokens,
+                confidence_score=confidence_result.score,
+                latency_ms=latency_ms,
+            )
+
         confidence_level = "high" if confidence_gate == ConfidenceGate.HIGH else "hedged"
         messages = build_prompt(query, ranked_chunks, confidence_level=confidence_level)
 
@@ -79,7 +97,6 @@ class ClinicalGenerator:
         if conversation_history:
             messages = conversation_history[-10:] + messages
 
-        active_system_prompt = system_prompt if system_prompt is not None else SYSTEM_PROMPT
         start = time.monotonic()
         response = self._llm.complete(active_system_prompt, messages, max_tokens=MAX_ANSWER_TOKENS)
         latency_ms = (time.monotonic() - start) * 1000

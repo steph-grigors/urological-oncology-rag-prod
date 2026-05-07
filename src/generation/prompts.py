@@ -62,6 +62,21 @@ LOW_CONFIDENCE_REFUSAL = (
     "or a specialist in urological oncology."
 )
 
+FALLBACK_DISCLAIMER = (
+    "> ⚠️ **Knowledge base disclaimer**: No sufficiently relevant literature was found "
+    "in the knowledge base for this query. The following response draws on the model's "
+    "general medical knowledge and has **not** been verified against peer-reviewed sources "
+    "in this database. Treat with appropriate caution and verify against current guidelines.\n\n"
+)
+
+FALLBACK_USER_TEMPLATE = (
+    "**Clinical question:** {question}\n\n"
+    "Note: The knowledge base did not return sufficiently relevant literature for this query. "
+    "Answer based on your general medical knowledge and training. "
+    "Clearly indicate where you are drawing on established guidelines versus general knowledge, "
+    "and flag any areas of uncertainty."
+)
+
 QUERY_REWRITE_PROMPT = (
     "Given the conversation history below and a follow-up question, rewrite the follow-up as a "
     "fully self-contained standalone question that captures all necessary context from the history.\n\n"
