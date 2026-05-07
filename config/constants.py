@@ -122,7 +122,7 @@ CONFIDENCE_REFUSE: Final[float] = 0.2  # Hard refusal — no answer produced
 
 # ── Generation ────────────────────────────────────────────────────────────────
 
-MAX_ANSWER_TOKENS: Final[int] = 800
+MAX_ANSWER_TOKENS: Final[int] = 2000
 GENERATION_TEMPERATURE: Final[float] = 0.1
 
 # Medical disclaimer appended to every answer

@@ -24,12 +24,16 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Optional
 
+import logging
+
 from openai import OpenAI
 
 from src.db.vector_store import QdrantStore, ScoredChunk
 from src.retrieval.bm25_search import BM25Search
 from src.retrieval.hybrid import rrf_fusion
 from src.retrieval.reranker import CohereReranker, RankedChunk
+
+logger = logging.getLogger(__name__)
 
 
 # ── Result type ───────────────────────────────────────────────────────────────
@@ -139,6 +143,17 @@ class RAGRetriever:
         confidence = (
             sum(c.relevance_score for c in ranked) / len(ranked)
             if ranked else 0.0
+        )
+
+        logger.info(
+            "Retrieval timings — embed: %.0fms | dense: %.0fms | bm25: %.0fms | "
+            "rerank: %.0fms | total: %.0fms | query_len: %d chars",
+            timings.get("embed_ms", 0),
+            timings.get("dense_ms", 0),
+            timings.get("bm25_ms", 0),
+            timings.get("rerank_ms", 0),
+            timings.get("total_ms", 0),
+            len(query),
         )
 
         return RetrievalResult(
