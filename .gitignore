@@ -45,3 +45,6 @@ data/metadata_cache.json
 data/bm25_cache.pkl
 data/bm25_cache.tmp
 rag_info/
+
+# Snapshots
+*.snapshot
