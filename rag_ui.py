@@ -129,7 +129,7 @@ def _query_backend(
     payload: dict = {"query": query, "cancer_types": cancer_types, "top_k": top_k}
     if conversation_id:
         payload["conversation_id"] = conversation_id
-    resp = requests.post(f"{_API_BASE}/query", json=payload, headers=headers, timeout=60)
+    resp = requests.post(f"{_API_BASE}/query", json=payload, headers=headers, timeout=180)
     if not resp.ok:
         try:
             detail = resp.json()
