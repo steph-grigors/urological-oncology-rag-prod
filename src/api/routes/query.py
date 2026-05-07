@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 # ── Request / Response schemas ────────────────────────────────────────────────
 
 class QueryRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=500)
+    query: str = Field(..., min_length=1, max_length=10000)
     cancer_types: list[str] = Field(default_factory=list)
     year_from: int | None = None
     year_to: int | None = None
