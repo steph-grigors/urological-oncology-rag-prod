@@ -38,6 +38,7 @@ class QueryRequest(BaseModel):
     conversation_id: str | None = None
     top_k: int = Field(default=5, ge=1, le=10)
     stream: bool = False
+    system_prompt: str | None = Field(default=None, max_length=10000)
 
     @field_validator("cancer_types", mode="before")
     @classmethod
@@ -157,7 +158,10 @@ async def query_endpoint(
     t_gen = time.perf_counter()
     try:
         gen_result = generator.generate(
-            body.query, retrieval_result.chunks, conversation_history=conversation_history
+            body.query,
+            retrieval_result.chunks,
+            conversation_history=conversation_history,
+            system_prompt=body.system_prompt,
         )
     except Exception as exc:
         logger.error("Generation failed: %s", exc)

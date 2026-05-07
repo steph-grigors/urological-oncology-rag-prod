@@ -112,6 +112,8 @@ if 'top_k' not in st.session_state:
     st.session_state.top_k = 5
 if 'show_context' not in st.session_state:
     st.session_state.show_context = False
+if 'custom_system_prompt' not in st.session_state:
+    st.session_state.custom_system_prompt = ""
 if 'user_api_key' not in st.session_state:
     st.session_state.user_api_key = None
 
@@ -123,12 +125,15 @@ def _query_backend(
     cancer_types: list,
     top_k: int,
     conversation_id: str | None,
+    system_prompt: str | None = None,
 ) -> dict:
     api_key = st.session_state.get("user_api_key") or _API_KEY
     headers = {"X-API-Key": api_key} if api_key else {}
     payload: dict = {"query": query, "cancer_types": cancer_types, "top_k": top_k}
     if conversation_id:
         payload["conversation_id"] = conversation_id
+    if system_prompt:
+        payload["system_prompt"] = system_prompt
     resp = requests.post(f"{_API_BASE}/query", json=payload, headers=headers, timeout=180)
     if not resp.ok:
         try:
@@ -733,6 +738,18 @@ def main() -> None:
                 value=st.session_state.show_context,
                 help="Show complete key finding instead of a short preview",
             )
+            st.session_state.custom_system_prompt = st.text_area(
+                "Custom instructions (overrides default system prompt)",
+                value=st.session_state.custom_system_prompt,
+                height=150,
+                placeholder=(
+                    "Optional. Paste a custom system prompt here to override the default "
+                    "clinical evidence summarization behavior.\n\n"
+                    "Example: You are a board-certified urological oncologist. "
+                    "Reason step by step and output a structured clinical card."
+                ),
+                help="When set, replaces the backend's default system prompt for this query.",
+            )
 
         # Execute
         if clear_button:
@@ -756,6 +773,7 @@ def main() -> None:
                         cancer_types=cancer_filter,
                         top_k=st.session_state.top_k,
                         conversation_id=st.session_state.conversation_id,
+                        system_prompt=st.session_state.custom_system_prompt or None,
                     )
                     latency_ms = response.get("latency_ms", {})
                     latency = latency_ms.get("total", (time.time() - start_time) * 1000) / 1000

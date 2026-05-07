@@ -43,6 +43,7 @@ class ClinicalGenerator:
         query: str,
         ranked_chunks: list["RankedChunk"],
         conversation_history: list[dict] | None = None,
+        system_prompt: str | None = None,
     ) -> GenerationResult:
         confidence_result = compute_confidence(ranked_chunks)
         confidence_gate = gate(confidence_result.score)
@@ -78,8 +79,9 @@ class ClinicalGenerator:
         if conversation_history:
             messages = conversation_history[-10:] + messages
 
+        active_system_prompt = system_prompt if system_prompt is not None else SYSTEM_PROMPT
         start = time.monotonic()
-        response = self._llm.complete(SYSTEM_PROMPT, messages, max_tokens=MAX_ANSWER_TOKENS)
+        response = self._llm.complete(active_system_prompt, messages, max_tokens=MAX_ANSWER_TOKENS)
         latency_ms = (time.monotonic() - start) * 1000
 
         answer, hallucinated = self._check_citations(response.content, len(ranked_chunks))
