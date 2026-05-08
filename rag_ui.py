@@ -107,7 +107,7 @@ if 'quality_metrics' not in st.session_state:
 if 'quality_history' not in st.session_state:
     st.session_state.quality_history = []
 if 'session_metrics' not in st.session_state:
-    st.session_state.session_metrics = {'queries': [], 'latencies': [], 'cache_hits': 0}
+    st.session_state.session_metrics = {'queries': [], 'latencies': [], 'last_latency': None}
 if 'top_k' not in st.session_state:
     st.session_state.top_k = 5
 if 'show_context' not in st.session_state:
@@ -174,6 +174,14 @@ def display_sidebar() -> None:
             st.success("✅ Key active — Unlimited queries")
         else:
             st.session_state.user_api_key = None
+            st.caption("Contact the administrator to obtain a key.")
+
+        with st.expander("🔒 Access & Security", expanded=False):
+            st.caption("""
+            - Keys are managed per user
+            - Rate limiting enforced server-side
+            - All queries logged for quality monitoring
+            """)
 
         st.divider()
         st.markdown("### 📊 Session Stats")
@@ -182,15 +190,12 @@ def display_sidebar() -> None:
         if queries_count > 0:
             latencies = metrics['latencies']
             avg_latency = sum(latencies) / len(latencies)
-            cache_hits = metrics['cache_hits']
-            cache_rate = cache_hits / queries_count * 100
+            last_latency = metrics.get('last_latency')
             st.markdown(f"""
 ```
 Queries:     {queries_count}
-Avg Latency: {avg_latency:.2f}s
-Cache Hits:  {cache_hits}/{queries_count} ({cache_rate:.0f}%)
-Fastest:     {min(latencies):.2f}s
-Slowest:     {max(latencies):.2f}s
+Last query:  {last_latency:.1f}s
+Avg latency: {avg_latency:.1f}s
 ```
             """)
         else:
@@ -499,37 +504,45 @@ def display_about_tab() -> None:
             - Expandable source cards with study design, sample size, and key finding
             """)
 
-        st.markdown("---")
-        st.subheader("🔑 Access")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("""
-            **🔐 API Key**
-            - Unlimited queries
-            - Contact the administrator to obtain a key
-            - Enter it in the sidebar to activate
-            """)
-        with col2:
-            st.markdown("""
-            **🔒 Security**
-            - Keys managed per user
-            - Rate limiting enforced server-side
-            - All queries logged for quality monitoring
-            """)
-
     with right_col:
         st.subheader("📊 Dataset at a Glance")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Papers", "27,500+", help="Full-text peer-reviewed articles")
-            st.metric("Chunks", "685,000+", help="Section-aware text segments")
-            st.metric("Avg Latency", "~7s", help="End-to-end query response time")
-        with col2:
-            st.metric("Topics", "6", help="Urological cancer types covered")
-            st.metric("Evidence Filter", "RCT+", help="High-evidence studies only")
-            st.metric("Years", "2010–2025", help="Publication date range")
+        st.markdown("""
+        <table style='width:100%;font-size:0.85rem;border-collapse:collapse;color:#333;'>
+        <tr><td style='padding:5px 8px;color:#555;'>Papers</td>
+            <td style='padding:5px 8px;font-weight:600;color:#333;'>27,500+</td></tr>
+        <tr style='background:rgba(0,0,0,0.04);'><td style='padding:5px 8px;color:#555;'>Chunks</td>
+            <td style='padding:5px 8px;font-weight:600;color:#333;'>685,000+</td></tr>
+        <tr><td style='padding:5px 8px;color:#555;'>Topics</td>
+            <td style='padding:5px 8px;font-weight:600;color:#333;'>6 cancer types</td></tr>
+        <tr style='background:rgba(0,0,0,0.04);'><td style='padding:5px 8px;color:#555;'>Evidence filter</td>
+            <td style='padding:5px 8px;font-weight:600;color:#333;'>RCT+</td></tr>
+        <tr><td style='padding:5px 8px;color:#555;'>Avg latency</td>
+            <td style='padding:5px 8px;font-weight:600;color:#333;'>~35s</td></tr>
+        <tr style='background:rgba(0,0,0,0.04);'><td style='padding:5px 8px;color:#555;'>Years</td>
+            <td style='padding:5px 8px;font-weight:600;color:#333;'>2010–2025</td></tr>
+        </table>
+        """, unsafe_allow_html=True)
 
-        st.markdown("---")
+    st.divider()
+    ds_col, ts_col = st.columns([3, 2], gap="large")
+    with ds_col:
+        st.subheader("📖 Data Sources")
+        c1, c2, c3 = st.columns(3)
+        c4, c5, c6 = st.columns(3)
+        with c1:
+            st.markdown("**Prostate Cancer**\n- 15,366 papers\n- 387,650 chunks")
+        with c2:
+            st.markdown("**Bladder Cancer**\n- 4,779 papers\n- 119,908 chunks")
+        with c3:
+            st.markdown("**Kidney Cancer**\n- 5,244 papers\n- 129,176 chunks")
+        with c4:
+            st.markdown("**Testicular Cancer**\n- 686 papers\n- 16,140 chunks")
+        with c5:
+            st.markdown("**Adrenal Cancer**\n- 1,185 papers\n- 26,801 chunks")
+        with c6:
+            st.markdown("**Penile Cancer**\n- 255 papers\n- 5,789 chunks")
+        st.caption("All papers sourced from PubMed Central Open Access Subset")
+    with ts_col:
         st.subheader("🛠️ Tech Stack")
         st.markdown("""
         <div style='display:flex;flex-wrap:wrap;gap:0.4rem;margin:0.75rem 0;'>
@@ -545,33 +558,15 @@ def display_about_tab() -> None:
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("---")
-        st.subheader("🔗 Links")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.link_button("📂 GitHub", "https://github.com/steph-grigors/urological-oncology-rag-prod", use_container_width=True)
-            st.link_button("💼 Portfolio", "https://www.stephan-gs.work", use_container_width=True)
-        with col2:
-            st.link_button("🔗 LinkedIn", "https://linkedin.com/in/stéphan-grs", use_container_width=True)
-            st.link_button("📧 Contact", "mailto:stephan.grigorescu@gmail.com", use_container_width=True)
-
-    st.divider()
-    st.subheader("📖 Data Sources")
-    c1, c2, c3 = st.columns(3)
-    c4, c5, c6 = st.columns(3)
-    with c1:
-        st.markdown("**Prostate Cancer**\n- 15,366 papers\n- 387,650 chunks")
-    with c2:
-        st.markdown("**Bladder Cancer**\n- 4,779 papers\n- 119,908 chunks")
-    with c3:
-        st.markdown("**Kidney Cancer**\n- 5,244 papers\n- 129,176 chunks")
-    with c4:
-        st.markdown("**Testicular Cancer**\n- 686 papers\n- 16,140 chunks")
-    with c5:
-        st.markdown("**Adrenal Cancer**\n- 1,185 papers\n- 26,801 chunks")
-    with c6:
-        st.markdown("**Penile Cancer**\n- 255 papers\n- 5,789 chunks")
-    st.caption("All papers sourced from PubMed Central Open Access Subset")
+    st.markdown("---")
+    st.subheader("🔗 Links")
+    lc1, lc2 = st.columns(2)
+    with lc1:
+        st.link_button("📂 GitHub", "https://github.com/steph-grigors/urological-oncology-rag-prod", use_container_width=True)
+        st.link_button("💼 Portfolio", "https://www.stephan-gs.work", use_container_width=True)
+    with lc2:
+        st.link_button("🔗 LinkedIn", "https://linkedin.com/in/stéphan-grs", use_container_width=True)
+        st.link_button("📧 Contact", "mailto:stephan.grigorescu@gmail.com", use_container_width=True)
 
     st.divider()
     st.markdown("""
@@ -617,58 +612,59 @@ def main() -> None:
     with tab1:
 
         # What is This / How It Works
-        info_col1, info_col2 = st.columns([1, 1], gap="large")
-        with info_col1:
-            st.subheader("💡 What is This?")
-            st.write("""
-            An AI-powered research assistant providing evidence-based answers from **27,500+**
-            peer-reviewed papers across **6 urological cancer types**. Uses advanced RAG
-            architecture to deliver accurate, cited responses with zero hallucination.
-            """)
-        with info_col2:
-            st.subheader("🔄 How It Works")
-            fc1, fc2, fc3, fc4 = st.columns(4)
-            with fc1:
-                st.markdown(
-                    "<div style='text-align:center'>"
-                    "<div style='font-size:1.8rem'>❓</div>"
-                    "<div style='font-weight:bold'>Ask</div>"
-                    "<div style='font-size:0.8rem;color:#666'>Your question</div>"
-                    "</div>",
-                    unsafe_allow_html=True,
-                )
-            with fc2:
-                st.markdown(
-                    "<div style='text-align:center'>"
-                    "<div style='font-size:1.8rem'>🔍</div>"
-                    "<div style='font-weight:bold'>Search</div>"
-                    "<div style='font-size:0.8rem;color:#666'>685K+ chunks</div>"
-                    "</div>",
-                    unsafe_allow_html=True,
-                )
-            with fc3:
-                st.markdown(
-                    "<div style='text-align:center'>"
-                    "<div style='font-size:1.8rem'>🤖</div>"
-                    "<div style='font-weight:bold'>Generate</div>"
-                    "<div style='font-size:0.8rem;color:#666'>AI answer</div>"
-                    "</div>",
-                    unsafe_allow_html=True,
-                )
-            with fc4:
-                st.markdown(
-                    "<div style='text-align:center'>"
-                    "<div style='font-size:1.8rem'>📚</div>"
-                    "<div style='font-weight:bold'>Cite</div>"
-                    "<div style='font-size:0.8rem;color:#666'>Source papers</div>"
-                    "</div>",
-                    unsafe_allow_html=True,
-                )
+        with st.expander("💡 What is This? · 🔄 How It Works", expanded=False):
+            info_col1, info_col2 = st.columns([1, 1], gap="large")
+            with info_col1:
+                st.markdown("#### 💡 What is This?")
+                st.write("""
+                An AI-powered research assistant providing evidence-based answers from **27,500+**
+                peer-reviewed papers across **6 urological cancer types**. Uses advanced RAG
+                architecture to deliver accurate, cited responses with zero hallucination.
+                """)
+            with info_col2:
+                st.markdown("#### 🔄 How It Works")
+                fc1, fc2, fc3, fc4 = st.columns(4)
+                with fc1:
+                    st.markdown(
+                        "<div style='text-align:center'>"
+                        "<div style='font-size:1.8rem'>❓</div>"
+                        "<div style='font-weight:bold'>Ask</div>"
+                        "<div style='font-size:0.8rem;color:#666'>Your question</div>"
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+                with fc2:
+                    st.markdown(
+                        "<div style='text-align:center'>"
+                        "<div style='font-size:1.8rem'>🔍</div>"
+                        "<div style='font-weight:bold'>Search</div>"
+                        "<div style='font-size:0.8rem;color:#666'>685K+ chunks</div>"
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+                with fc3:
+                    st.markdown(
+                        "<div style='text-align:center'>"
+                        "<div style='font-size:1.8rem'>🤖</div>"
+                        "<div style='font-weight:bold'>Generate</div>"
+                        "<div style='font-size:0.8rem;color:#666'>AI answer</div>"
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+                with fc4:
+                    st.markdown(
+                        "<div style='text-align:center'>"
+                        "<div style='font-size:1.8rem'>📚</div>"
+                        "<div style='font-weight:bold'>Cite</div>"
+                        "<div style='font-size:0.8rem;color:#666'>Source papers</div>"
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
 
         st.divider()
 
         # Query section
-        st.subheader("I am your AI urologist — Ask me a question!")
+        st.subheader("Hi! I specialise in urological oncology. What's your clinical question?")
 
         topic_filter = st.selectbox(
             "Search in:",
@@ -802,8 +798,7 @@ def main() -> None:
 
                     st.session_state.session_metrics["queries"].append(query)
                     st.session_state.session_metrics["latencies"].append(latency)
-                    if latency < 0.5:
-                        st.session_state.session_metrics["cache_hits"] += 1
+                    st.session_state.session_metrics["last_latency"] = latency
 
                 except Exception as e:
                     import traceback
