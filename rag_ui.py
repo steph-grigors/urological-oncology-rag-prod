@@ -506,20 +506,17 @@ def display_about_tab() -> None:
 
     with right_col:
         st.subheader("📊 Dataset at a Glance")
-        st.markdown("""
-        <table style='width:100%;font-size:0.85rem;border-collapse:collapse;color:#333;'>
-        <tr><td style='padding:5px 8px;color:#555;'>Papers</td>
-            <td style='padding:5px 8px;font-weight:600;color:#333;'>27,500+</td></tr>
-        <tr style='background:rgba(0,0,0,0.04);'><td style='padding:5px 8px;color:#555;'>Chunks</td>
-            <td style='padding:5px 8px;font-weight:600;color:#333;'>685,000+</td></tr>
-        <tr><td style='padding:5px 8px;color:#555;'>Topics</td>
-            <td style='padding:5px 8px;font-weight:600;color:#333;'>6 cancer types</td></tr>
-        <tr style='background:rgba(0,0,0,0.04);'><td style='padding:5px 8px;color:#555;'>Evidence filter</td>
-            <td style='padding:5px 8px;font-weight:600;color:#333;'>RCT+</td></tr>
-        <tr><td style='padding:5px 8px;color:#555;'>Avg latency</td>
-            <td style='padding:5px 8px;font-weight:600;color:#333;'>~35s</td></tr>
-        <tr style='background:rgba(0,0,0,0.04);'><td style='padding:5px 8px;color:#555;'>Years</td>
-            <td style='padding:5px 8px;font-weight:600;color:#333;'>2010–2025</td></tr>
+        _td = "style='padding:6px 10px;color:white;font-weight:700;'"
+        _tr1 = "style='background:#1f77b4;'"
+        _tr2 = "style='background:#1869a8;'"
+        st.markdown(f"""
+        <table style='width:100%;font-size:0.85rem;border-collapse:collapse;border-radius:6px;overflow:hidden;'>
+        <tr {_tr1}><td {_td}>Papers</td><td {_td}>27,500+</td></tr>
+        <tr {_tr2}><td {_td}>Chunks</td><td {_td}>685,000+</td></tr>
+        <tr {_tr1}><td {_td}>Topics</td><td {_td}>6 cancer types</td></tr>
+        <tr {_tr2}><td {_td}>Evidence filter</td><td {_td}>RCT+</td></tr>
+        <tr {_tr1}><td {_td}>Avg latency</td><td {_td}>~35s</td></tr>
+        <tr {_tr2}><td {_td}>Years</td><td {_td}>2010–2025</td></tr>
         </table>
         """, unsafe_allow_html=True)
 
@@ -612,15 +609,17 @@ def main() -> None:
     with tab1:
 
         # What is This / How It Works
-        with st.expander("💡 What is This? · 🔄 How It Works", expanded=False):
-            info_col1, info_col2 = st.columns([1, 1], gap="large")
+        with st.expander("💡 What is this app about? · 🔄 How It Works", expanded=False):
+            info_col1, _, info_col2 = st.columns([9, 1, 9])
             with info_col1:
-                st.markdown("#### 💡 What is This?")
+                st.markdown("#### 💡 What is this app about?")
                 st.write("""
                 An AI-powered research assistant providing evidence-based answers from **27,500+**
                 peer-reviewed papers across **6 urological cancer types**. Uses advanced RAG
                 architecture to deliver accurate, cited responses with zero hallucination.
                 """)
+            with _:
+                st.markdown("<div style='border-left:1px solid #ddd;min-height:120px;height:100%;'></div>", unsafe_allow_html=True)
             with info_col2:
                 st.markdown("#### 🔄 How It Works")
                 fc1, fc2, fc3, fc4 = st.columns(4)
@@ -664,7 +663,11 @@ def main() -> None:
         st.divider()
 
         # Query section
-        st.subheader("Hi! I specialise in urological oncology. What's your clinical question?")
+        st.markdown(
+            "<h3 style='margin-bottom:0;'>Hi! I specialise in urological oncology.</h3>"
+            "<h3 style='margin-top:0.1rem;'>What's your clinical question?</h3>",
+            unsafe_allow_html=True,
+        )
 
         topic_filter = st.selectbox(
             "Search in:",
