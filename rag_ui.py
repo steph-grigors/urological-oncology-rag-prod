@@ -507,8 +507,8 @@ def display_about_tab() -> None:
     with right_col:
         st.subheader("📊 Dataset at a Glance")
         _td = "style='padding:6px 10px;color:white;font-weight:700;'"
-        _tr1 = "style='background:#1f77b4;'"
-        _tr2 = "style='background:#1869a8;'"
+        _tr1 = "style='background:#000000;'"
+        _tr2 = "style='background:#1a1a1a;'"
         st.markdown(f"""
         <table style='width:100%;font-size:0.85rem;border-collapse:collapse;border-radius:6px;overflow:hidden;'>
         <tr {_tr1}><td {_td}>Papers</td><td {_td}>27,500+</td></tr>
@@ -609,7 +609,7 @@ def main() -> None:
     with tab1:
 
         # What is This / How It Works
-        with st.expander("💡 What is this app about? · 🔄 How It Works", expanded=False):
+        with st.expander("💡 What is this app about?            ·            🔄 How It Works", expanded=False):
             info_col1, _, info_col2 = st.columns([9, 1, 9])
             with info_col1:
                 st.markdown("#### 💡 What is this app about?")
