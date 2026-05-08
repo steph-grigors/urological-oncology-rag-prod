@@ -506,19 +506,19 @@ def display_about_tab() -> None:
 
     with right_col:
         st.subheader("📊 Dataset at a Glance")
-        _td = "style='padding:6px 10px;color:white;font-weight:700;'"
-        _tr1 = "style='background:#000000;'"
-        _tr2 = "style='background:#1a1a1a;'"
-        st.markdown(f"""
-        <table style='width:100%;font-size:0.85rem;border-collapse:collapse;border-radius:6px;overflow:hidden;'>
-        <tr {_tr1}><td {_td}>Papers</td><td {_td}>27,500+</td></tr>
-        <tr {_tr2}><td {_td}>Chunks</td><td {_td}>685,000+</td></tr>
-        <tr {_tr1}><td {_td}>Topics</td><td {_td}>6 cancer types</td></tr>
-        <tr {_tr2}><td {_td}>Evidence filter</td><td {_td}>RCT+</td></tr>
-        <tr {_tr1}><td {_td}>Avg latency</td><td {_td}>~35s</td></tr>
-        <tr {_tr2}><td {_td}>Years</td><td {_td}>2010–2025</td></tr>
-        </table>
-        """, unsafe_allow_html=True)
+        for _label, _value in [
+            ("Papers", "27,500+"),
+            ("Chunks", "685,000+"),
+            ("Topics", "6 cancer types"),
+            ("Evidence filter", "RCT+"),
+            ("Avg latency", "~35s"),
+            ("Years", "2010–2025"),
+        ]:
+            _c1, _c2 = st.columns(2)
+            with _c1:
+                st.caption(_label)
+            with _c2:
+                st.markdown(f"**{_value}**")
 
     st.divider()
     ds_col, ts_col = st.columns([3, 2], gap="large")
@@ -609,7 +609,7 @@ def main() -> None:
     with tab1:
 
         # What is This / How It Works
-        with st.expander("💡 What is this app about?            ·            🔄 How It Works", expanded=False):
+        with st.expander("💡 What is this app about?" + " " * 18 + "🔄 How It Works", expanded=False):
             info_col1, _, info_col2 = st.columns([9, 1, 9])
             with info_col1:
                 st.markdown("#### 💡 What is this app about?")
