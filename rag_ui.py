@@ -462,10 +462,10 @@ def display_about_tab() -> None:
 
         with st.expander("📚 Comprehensive Knowledge Base", expanded=False):
             st.write("""
-            - **27,500+ full-text papers** from PubMed Central Open Access
+            - **31,000+ full-text papers** from PubMed Central Open Access
             - **6 cancer types:** Prostate, Bladder, Kidney, Testicular, Penile, Adrenal
-            - **685,000+ section-aware chunks** for precise retrieval
-            - **Years covered:** 2010–2025 (latest high-evidence research)
+            - **795,000+ section-aware chunks** for precise retrieval
+            - **Years covered:** 2010–2026 (latest high-evidence research)
             - **Filtered corpus:** RCTs, meta-analyses, systematic reviews, clinical guidelines
             """)
 
@@ -507,12 +507,12 @@ def display_about_tab() -> None:
     with right_col:
         st.subheader("📊 Dataset at a Glance")
         for _label, _value in [
-            ("Papers", "27,500+"),
-            ("Chunks", "685,000+"),
+            ("Papers", "31,000+"),
+            ("Chunks", "795,000+"),
             ("Topics", "6 cancer types"),
             ("Evidence filter", "RCT+"),
             ("Avg latency", "~35s"),
-            ("Years", "2010–2025"),
+            ("Years", "2010–2026"),
         ]:
             _c1, _c2 = st.columns(2)
             with _c1:
@@ -527,17 +527,17 @@ def display_about_tab() -> None:
         c1, c2, c3 = st.columns(3)
         c4, c5, c6 = st.columns(3)
         with c1:
-            st.markdown("**Prostate Cancer**\n- 15,366 papers\n- 387,650 chunks")
+            st.markdown("**Prostate Cancer**\n- 17,382 papers\n- 445,895 chunks")
         with c2:
-            st.markdown("**Bladder Cancer**\n- 4,779 papers\n- 119,908 chunks")
+            st.markdown("**Bladder Cancer**\n- 5,476 papers\n- 139,933 chunks")
         with c3:
-            st.markdown("**Kidney Cancer**\n- 5,244 papers\n- 129,176 chunks")
+            st.markdown("**Kidney Cancer**\n- 6,034 papers\n- 152,113 chunks")
         with c4:
-            st.markdown("**Testicular Cancer**\n- 686 papers\n- 16,140 chunks")
+            st.markdown("**Testicular Cancer**\n- 782 papers\n- 18,479 chunks")
         with c5:
-            st.markdown("**Adrenal Cancer**\n- 1,185 papers\n- 26,801 chunks")
+            st.markdown("**Adrenal Cancer**\n- 1,384 papers\n- 31,774 chunks")
         with c6:
-            st.markdown("**Penile Cancer**\n- 255 papers\n- 5,789 chunks")
+            st.markdown("**Penile Cancer**\n- 303 papers\n- 7,112 chunks")
         st.caption("All papers sourced from PubMed Central Open Access Subset")
     with ts_col:
         st.subheader("🛠️ Tech Stack")
@@ -605,10 +605,10 @@ def main() -> None:
             Evidence-based clinical research · AI retrieval-augmented generation
         </div>
         <div style='margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap;'>
-            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>27,500+ papers</span>
-            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>685K+ chunks</span>
+            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>31,000+ papers</span>
+            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>795K+ chunks</span>
             <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>6 cancer types</span>
-            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>2010–2025</span>
+            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>2010–2026</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -624,7 +624,7 @@ def main() -> None:
             with info_col1:
                 st.markdown("#### 💡 What is this app about?")
                 st.write("""
-                An AI-powered research assistant providing evidence-based answers from **27,500+**
+                An AI-powered research assistant providing evidence-based answers from **31,000+**
                 peer-reviewed papers across **6 urological cancer types**. Uses advanced RAG
                 architecture to deliver accurate, cited responses with zero hallucination.
                 """)
@@ -647,7 +647,7 @@ def main() -> None:
                         "<div style='text-align:center'>"
                         "<div style='font-size:1.8rem'>🔍</div>"
                         "<div style='font-weight:bold'>Search</div>"
-                        "<div style='font-size:0.8rem;color:#666'>685K+ chunks</div>"
+                        "<div style='font-size:0.8rem;color:#666'>795K+ chunks</div>"
                         "</div>",
                         unsafe_allow_html=True,
                     )

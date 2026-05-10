@@ -1,7 +1,7 @@
 # Ingestion Summary
 
-**Date:** 2026-05-05  
-**Runs:** 3 (full · incremental · prostate recovery)
+**Date:** 2026-05-10  
+**Runs:** 4 (full · incremental · prostate recovery · 2025–2026 catch-up)
 
 ---
 
@@ -9,8 +9,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Papers ingested | 27,515 |
-| Chunks produced | 685,464 |
+| Papers ingested | 31,361 |
+| Chunks produced | 795,306 |
 | Vector size | 1,536 (text-embedding-3-small) |
 | Qdrant collection | `urological_oncology_papers` — GREEN ✅ |
 
@@ -20,15 +20,25 @@
 
 | Topic | Papers | Chunks | Avg Chunks / Paper | Share |
 |-------|-------:|-------:|-------------------:|------:|
-| Prostate | 15,366 | 387,650 | 25.2 | 56.5% |
-| Kidney | 5,244 | 129,176 | 24.6 | 18.8% |
-| Bladder | 4,779 | 119,908 | 25.1 | 17.5% |
-| Adrenal | 1,185 | 26,801 | 22.6 | 3.9% |
-| Testicular | 686 | 16,140 | 23.5 | 2.4% |
-| Penile | 255 | 5,789 | 22.7 | 0.8% |
-| **Total** | **27,515** | **685,464** | **24.9** | **100%** |
+| Prostate | 17,382 | 445,895 | 25.6 | 56.1% |
+| Kidney | 6,034 | 152,113 | 25.2 | 19.1% |
+| Bladder | 5,476 | 139,933 | 25.6 | 17.6% |
+| Adrenal | 1,384 | 31,774 | 23.0 | 4.0% |
+| Testicular | 782 | 18,479 | 23.6 | 2.3% |
+| Penile | 303 | 7,112 | 23.5 | 0.9% |
+| **Total** | **31,361** | **795,306** | **25.4** | **100%** |
 
-*Prostate numbers derived from total minus other topics (recovered via yearly-window NCBI strategy in run 3).*
+---
+
+## Run 4 — 2025–2026 catch-up (2026-05-10)
+
+| Metric | Value |
+|--------|-------|
+| Papers fetched | 3,846 |
+| Chunks produced | 109,842 |
+| Embedded | 109,842 |
+| Cost | $0.6345 |
+| Elapsed | 3,448.6s (~57 min) |
 
 ---
 
