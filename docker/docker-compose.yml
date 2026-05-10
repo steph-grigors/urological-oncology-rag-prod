@@ -134,6 +134,10 @@ services:
         --mode incremental
         --since-date $(date -d '7 days ago' +%Y/%m/%d)
         --limit 2000
+      ofelia.job-local.restart-api-after-ingestion.schedule: "0 8 * * 0"   # Sunday 08:00 UTC (after ingestion)
+      ofelia.job-local.restart-api-after-ingestion.command: >
+        curl -sf --unix-socket /var/run/docker.sock
+        -X POST http://localhost/v1.41/containers/uro-rag-api/restart
     restart: unless-stopped
     networks:
       - rag-net
