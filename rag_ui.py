@@ -598,7 +598,7 @@ def main() -> None:
 
     st.markdown("""
     <div style='border-top:3px solid #1f77b4;margin-top:0.5rem;padding-top:1rem;margin-bottom:1.5rem;'>
-        <div style='font-size:1.9rem;font-weight:800;color:#1a3a5c;letter-spacing:-0.3px;line-height:1.2;'>
+        <div style='font-size:1.9rem;font-weight:800;color:#1966D3;letter-spacing:-0.3px;line-height:1.2;'>
             🔬 Urological Oncology RAG System
         </div>
         <div style='font-size:0.95rem;color:#555;margin-top:0.35rem;'>
