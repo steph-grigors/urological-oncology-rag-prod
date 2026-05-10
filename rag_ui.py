@@ -597,9 +597,19 @@ def main() -> None:
     display_sidebar()
 
     st.markdown("""
-    <div style='margin-top:0.5rem;margin-bottom:1.5rem;'>
-        <div class='app-title'>🔬 Urological Oncology RAG System</div>
-        <div class='app-subtitle'>Evidence-based medical research powered by AI retrieval-augmented generation</div>
+    <div style='border-top:3px solid #1f77b4;margin-top:0.5rem;padding-top:1rem;margin-bottom:1.5rem;'>
+        <div style='font-size:1.9rem;font-weight:800;color:#1a3a5c;letter-spacing:-0.3px;line-height:1.2;'>
+            🔬 Urological Oncology RAG System
+        </div>
+        <div style='font-size:0.95rem;color:#555;margin-top:0.35rem;'>
+            Evidence-based clinical research · AI retrieval-augmented generation
+        </div>
+        <div style='margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap;'>
+            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>27,500+ papers</span>
+            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>685K+ chunks</span>
+            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>6 cancer types</span>
+            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>2010–2025</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -609,7 +619,7 @@ def main() -> None:
     with tab1:
 
         # What is This / How It Works
-        with st.expander("💡 What is this app about?" + " " * 18 + "🔄 How It Works", expanded=False):
+        with st.expander("💡 What is this app about?" + " " * 10 + "🔄 How does it work?", expanded=False):
             info_col1, _, info_col2 = st.columns([9, 1, 9])
             with info_col1:
                 st.markdown("#### 💡 What is this app about?")
@@ -724,31 +734,31 @@ def main() -> None:
             st.caption("💬 Chat mode active")
 
         # Query settings
-        with st.expander("⚙️ Query Settings", expanded=False):
-            st.session_state.top_k = st.slider(
-                "Number of sources",
-                min_value=1,
-                max_value=10,
-                value=st.session_state.top_k,
-                help="Number of relevant chunks retrieved before reranking",
-            )
-            st.session_state.show_context = st.checkbox(
-                "Show full source text",
-                value=st.session_state.show_context,
-                help="Show complete key finding instead of a short preview",
-            )
-            st.session_state.custom_system_prompt = st.text_area(
-                "Custom instructions (overrides default system prompt)",
-                value=st.session_state.custom_system_prompt,
-                height=150,
-                placeholder=(
-                    "Optional. Paste a custom system prompt here to override the default "
-                    "clinical evidence summarization behavior.\n\n"
-                    "Example: You are a board-certified urological oncologist. "
-                    "Reason step by step and output a structured clinical card."
-                ),
-                help="When set, replaces the backend's default system prompt for this query.",
-            )
+        st.markdown("#### ⚙️ Query Settings")
+        st.session_state.top_k = st.slider(
+            "Number of sources",
+            min_value=1,
+            max_value=10,
+            value=st.session_state.top_k,
+            help="Number of relevant chunks retrieved before reranking",
+        )
+        st.session_state.show_context = st.checkbox(
+            "Show full source text",
+            value=st.session_state.show_context,
+            help="Show complete key finding instead of a short preview",
+        )
+        st.session_state.custom_system_prompt = st.text_area(
+            "Custom instructions (overrides default system prompt)",
+            value=st.session_state.custom_system_prompt,
+            height=150,
+            placeholder=(
+                "Optional. Paste a custom system prompt here to override the default "
+                "clinical evidence summarization behavior.\n\n"
+                "Example: You are a board-certified urological oncologist. "
+                "Reason step by step and output a structured clinical card."
+            ),
+            help="When set, replaces the backend's default system prompt for this query.",
+        )
 
         # Execute
         if clear_button:
