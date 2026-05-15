@@ -574,7 +574,7 @@ def display_performance_tab() -> None:
                 "(multiple independent papers > single source), and section relevance (Results/Conclusion > Methods)."
             )
 
-    if len(history) > 1:
+    if len(history) >= 1:
         st.divider()
         st.markdown("#### Quality scores over this session")
         metrics_keys = [
@@ -583,7 +583,7 @@ def display_performance_tab() -> None:
             ("Relevance",         "relevance"),
             ("Context Precision", "precision"),
         ]
-        z, text, x_labels = [], [], []
+        z, x_labels = [], []
         for i, h in enumerate(history, 1):
             short = (h["query"][:30] + "…") if len(h["query"]) > 30 else h["query"]
             x_labels.append(f"Q{i}: {short}")
@@ -594,14 +594,11 @@ def display_performance_tab() -> None:
                 else [h[key] * 100 for h in history]
             )
             z.append(row_vals)
-            text.append([f"{v:.0f}%" for v in row_vals])
         fig = go.Figure(go.Heatmap(
             z=z,
             x=x_labels,
             y=[label for label, _ in metrics_keys],
-            text=text,
-            texttemplate="%{text}",
-            textfont=dict(size=13, color="white"),
+            texttemplate="%{z:.0f}%",
             colorscale=[
                 [0.0,  "#dc2626"],
                 [0.5,  "#d97706"],
@@ -611,7 +608,7 @@ def display_performance_tab() -> None:
             zmin=0, zmax=100,
             showscale=True,
             colorbar=dict(title="Score", ticksuffix="%", thickness=12),
-            hovertemplate="%{x}<br>%{y}: %{text}<extra></extra>",
+            hovertemplate="%{x}<br>%{y}: %{z:.0f}%<extra></extra>",
         ))
         fig.update_layout(
             height=210,
