@@ -14,11 +14,20 @@ import plotly.graph_objects as go
 _API_BASE = os.environ.get("API_BACKEND_URL", "http://localhost:8000").rstrip("/")
 _API_KEY  = os.environ.get("API_KEY", "")
 
-_QUALITY_BADGES: dict[str, tuple[str, str]] = {
-    "high":         ("#1e7e34", "🟢 High Evidence"),
-    "hedged":       ("#d97706", "🟡 Hedged"),
-    "caveated":     ("#dc2626", "🔴 Caveated"),
-    "insufficient": ("#6b7280", "⚫ Insufficient"),
+_QUALITY_BADGES: dict[str, tuple[str, str, str]] = {
+    "high":         ("#1e7e34", "🟢 High Evidence",
+                     "Multiple consistent, relevant sources were retrieved. "
+                     "The answer is well-supported by the knowledge base."),
+    "hedged":       ("#d97706", "🟡 Hedged",
+                     "Relevant sources were found but the evidence is mixed or limited. "
+                     "The answer reflects uncertainty in the literature."),
+    "caveated":     ("#dc2626", "🔴 Caveated",
+                     "Sources were retrieved but may not directly address the query, "
+                     "or the evidence conflicts. Interpret with caution."),
+    "insufficient": ("#6b7280", "⚫ Insufficient",
+                     "No sufficiently relevant literature was found in the knowledge base. "
+                     "The response draws on the model's general medical knowledge, "
+                     "not peer-reviewed sources in this database."),
 }
 
 _DESIGN_COLORS: dict[str, str] = {
@@ -118,6 +127,7 @@ st.markdown("""
         padding: 2px 11px;
         border-radius: 12px;
         color: white;
+        cursor: help;
     }
     /* ── Status bar ── */
     .status-bar {
@@ -193,8 +203,12 @@ def _design_badge(design: str) -> str:
 
 
 def _ev_pill(quality: str) -> str:
-    color, label = _QUALITY_BADGES.get(quality, ("#6b7280", quality.replace("_", " ").title()))
-    return f"<span class='ev-pill' style='background:{color};'>{label}</span>"
+    entry = _QUALITY_BADGES.get(quality)
+    if entry:
+        color, label, tooltip = entry
+    else:
+        color, label, tooltip = "#6b7280", quality.replace("_", " ").title(), ""
+    return f"<span class='ev-pill' style='background:{color};' title='{tooltip}'>{label}</span>"
 
 
 def _format_citations(answer: str, sources: list) -> str:
@@ -432,7 +446,7 @@ def display_query_tab() -> None:
 
         if search_button and query:
             query = query.strip()
-            with st.spinner("Searching 795,000+ chunks…"):
+            with st.spinner("Searching augmented knowledge database…"):
                 start = time.time()
                 try:
                     cancer_filter = (
