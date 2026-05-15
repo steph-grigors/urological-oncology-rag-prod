@@ -240,9 +240,6 @@ def _evaluate_quality(query: str, answer: str, sources: list) -> dict:
 
 def display_sidebar() -> None:
     with st.sidebar:
-        st.markdown("<div class='sb-brand'>🔬 Uro-Onco RAG</div>", unsafe_allow_html=True)
-        st.markdown("<div class='sb-tagline'>Clinical evidence assistant</div>", unsafe_allow_html=True)
-
         st.markdown("<div class='sb-section'>🔑 Access</div>", unsafe_allow_html=True)
         user_api_key = st.text_input(
             "Access key",
