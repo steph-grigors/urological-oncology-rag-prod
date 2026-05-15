@@ -270,8 +270,6 @@ def display_sidebar() -> None:
                 st.metric("Sources", resp["num_sources"])
             with c2:
                 st.metric("Latency", f"{resp['latency']:.1f}s")
-        else:
-            st.caption("No query yet.")
         sm = st.session_state.session_metrics
         query_count = len(sm["queries"])
         st.metric("Queries this session", query_count)
