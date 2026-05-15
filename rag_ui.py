@@ -251,20 +251,18 @@ def display_sidebar() -> None:
 
         st.divider()
 
-        st.markdown("<div class='sb-section'>📊 Session</div>", unsafe_allow_html=True)
-        sm = st.session_state.session_metrics
-        n = len(sm["queries"])
-        if n > 0:
+        st.markdown("<div class='sb-section'>📈 Last Query</div>", unsafe_allow_html=True)
+        if st.session_state.current_response:
+            resp = st.session_state.current_response
             c1, c2 = st.columns(2)
             with c1:
-                st.metric("Queries", n)
+                st.metric("Sources", resp["num_sources"])
             with c2:
-                avg = sum(sm["latencies"]) / len(sm["latencies"])
-                st.metric("Avg", f"{avg:.1f}s")
-            if sm.get("last_latency"):
-                st.caption(f"Last query: **{sm['last_latency']:.1f}s**")
+                st.metric("Latency", f"{resp['latency']:.1f}s")
+            conf = resp.get("confidence_score", 0.0)
+            st.metric("Confidence", f"{conf:.0%}")
         else:
-            st.caption("No queries yet.")
+            st.caption("No query yet.")
 
 
 
@@ -382,18 +380,6 @@ def display_query_tab() -> None:
                 st.session_state.current_response = None
                 st.session_state.quality_metrics = None
                 st.rerun()
-
-        if st.session_state.current_response:
-            resp = st.session_state.current_response
-            st.divider()
-            st.markdown("<div class='panel-heading'>📈 Last Query</div>", unsafe_allow_html=True)
-            m1, m2 = st.columns(2)
-            with m1:
-                st.metric("Sources", resp["num_sources"])
-            with m2:
-                st.metric("Latency", f"{resp['latency']:.1f}s")
-            conf = resp.get("confidence_score", 0.0)
-            st.metric("Confidence", f"{conf:.0%}")
 
     # ── Left column: query input + results ────────────────────────────────
     with col_main:
