@@ -273,8 +273,6 @@ def display_sidebar() -> None:
         sm = st.session_state.session_metrics
         query_count = len(sm["queries"])
         st.metric("Queries this session", query_count)
-        if st.session_state.conversation_id:
-            st.caption(f"Conversation `{st.session_state.conversation_id[:8]}…`")
 
 
 
