@@ -273,8 +273,6 @@ def display_sidebar() -> None:
         sm = st.session_state.session_metrics
         query_count = len(sm["queries"])
         st.metric("Queries this session", query_count)
-        chat_on = st.session_state.chat_mode
-        st.caption(f"Chat mode: {'🟢 On' if chat_on else '⚪ Off'}")
         if st.session_state.conversation_id:
             st.caption(f"Conversation `{st.session_state.conversation_id[:8]}…`")
 
