@@ -1,121 +1,163 @@
 """
-Streamlit Web Interface for Urological Oncology RAG System
-Professional UI - API-connected v4
+Streamlit Web Interface — Urological Oncology RAG System
+Clinical Dashboard v2
 """
 
 import streamlit as st
 import os
 import time
-import json
 import uuid
 import requests
-from pathlib import Path
 import plotly.graph_objects as go
 
-# ── Backend API configuration ──────────────────────────────────────────────────
+# ── Backend API configuration ─────────────────────────────────────────────────
 _API_BASE = os.environ.get("API_BACKEND_URL", "http://localhost:8000").rstrip("/")
-_API_KEY = os.environ.get("API_KEY", "")
+_API_KEY  = os.environ.get("API_KEY", "")
 
 _QUALITY_BADGES: dict[str, tuple[str, str]] = {
-    "high":         ("#2e7d32", "🟢 High Evidence"),
-    "hedged":       ("#f57c00", "🟡 Hedged"),
-    "caveated":     ("#c62828", "🔴 Caveated"),
-    "insufficient": ("#546e7a", "⚫ Insufficient"),
+    "high":         ("#1e7e34", "🟢 High Evidence"),
+    "hedged":       ("#d97706", "🟡 Hedged"),
+    "caveated":     ("#dc2626", "🔴 Caveated"),
+    "insufficient": ("#6b7280", "⚫ Insufficient"),
 }
 
 _DESIGN_COLORS: dict[str, str] = {
-    "rct":           "#2ca02c",
-    "meta_analysis": "#1f77b4",
-    "cohort":        "#ff7f0e",
-    "case_report":   "#9467bd",
-    "review":        "#8c564b",
-    "unknown":       "#7f7f7f",
+    "rct":           "#1966D3",
+    "meta_analysis": "#0e4fa8",
+    "cohort":        "#059669",
+    "case_report":   "#7c3aed",
+    "review":        "#9333ea",
+    "unknown":       "#9ca3af",
 }
+
+_CANCER_TYPES = [
+    "All Topics",
+    "Prostate Cancer",
+    "Bladder Cancer",
+    "Kidney Cancer",
+    "Testicular Cancer",
+    "Penile Cancer",
+    "Adrenal Cancer",
+]
 
 st.set_page_config(
     page_title="Urological Oncology RAG",
     page_icon="🔬",
-    layout="centered",
-    initial_sidebar_state="expanded"
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 st.markdown("""
 <style>
+    /* ── Layout ── */
     .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 1.5rem;
-    }
-    section[data-testid="stSidebar"] > div {
-        padding-top: 1.5rem !important;
+        padding-top: 1.25rem !important;
+        padding-bottom: 2rem;
+        max-width: 1440px;
     }
     section[data-testid="stSidebar"] {
-        width: 300px !important;
-        min-width: 300px !important;
-        max-width: 300px !important;
+        width: 270px !important;
+        min-width: 270px !important;
+        max-width: 270px !important;
     }
-    .app-title {
-        font-size: 1.8rem;
+    section[data-testid="stSidebar"] > div {
+        padding-top: 1.25rem !important;
+    }
+    /* ── Sidebar branding ── */
+    .sb-brand {
+        font-size: 0.95rem;
         font-weight: 700;
-        color: #1f77b4;
-        margin-bottom: 0.2rem;
-        margin-top: 0.5rem;
+        color: #1966D3;
+        letter-spacing: -0.2px;
     }
-    .app-subtitle {
-        font-size: 1rem;
-        color: #555;
-        margin-bottom: 1.5rem;
+    .sb-tagline {
+        font-size: 0.72rem;
+        color: #9ca3af;
+        margin-top: 0.1rem;
+        margin-bottom: 1rem;
     }
+    .sb-section {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: #9ca3af;
+        margin-bottom: 0.4rem;
+        margin-top: 0.1rem;
+    }
+    /* ── Answer container ── */
+    .answer-body {
+        line-height: 1.8;
+        font-size: 0.97rem;
+    }
+    /* ── Citation chip ── */
     .citation {
-        color: #1f77b4;
+        display: inline-block;
+        background: #dbeafe;
+        color: #1966D3;
         font-weight: 600;
-        text-decoration: none;
-        cursor: pointer;
-        padding: 2px 6px;
-        background: #e8f4f8;
-        border-radius: 3px;
-        font-size: 0.9em;
+        font-size: 0.8em;
+        padding: 1px 5px;
+        border-radius: 4px;
     }
-    .citation:hover {
-        background: #d0e8f0;
+    /* ── Study design badge ── */
+    .design-badge {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 4px;
+        color: white;
+        letter-spacing: 0.03em;
     }
-    .stButton button {
-        width: 100%;
+    /* ── Evidence quality pill ── */
+    .ev-pill {
+        display: inline-block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 2px 11px;
+        border-radius: 12px;
+        color: white;
     }
-    .stTextArea textarea {
-        min-height: 80px !important;
+    /* ── Status bar ── */
+    .status-bar {
+        font-size: 0.88rem;
+        color: #6b7280;
+        margin-bottom: 0.6rem;
     }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        padding-top: 0.5rem;
-    }
-    section[data-testid="stSidebar"] .element-container {
+    /* ── Settings panel heading ── */
+    .panel-heading {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: #9ca3af;
         margin-bottom: 0.5rem;
     }
-    div[data-testid="stVerticalBlock"] > div {
-        gap: 0.5rem;
+    /* ── Thin rule ── */
+    .thin-rule {
+        border: none;
+        border-top: 1px solid #e5e7eb;
+        margin: 0.5rem 0;
     }
+    /* ── Tab gap ── */
+    .stTabs [data-baseweb="tab-list"] { gap: 4px; }
+    /* ── Button full width ── */
+    .stButton button { width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
 # ── Session state ──────────────────────────────────────────────────────────────
-if 'conversation_id' not in st.session_state:
-    st.session_state.conversation_id = None
-if 'current_response' not in st.session_state:
-    st.session_state.current_response = None
-if 'quality_metrics' not in st.session_state:
-    st.session_state.quality_metrics = None
-if 'quality_history' not in st.session_state:
-    st.session_state.quality_history = []
-if 'session_metrics' not in st.session_state:
-    st.session_state.session_metrics = {'queries': [], 'latencies': [], 'last_latency': None}
-if 'top_k' not in st.session_state:
-    st.session_state.top_k = 5
-if 'show_context' not in st.session_state:
-    st.session_state.show_context = False
-if 'custom_system_prompt' not in st.session_state:
-    st.session_state.custom_system_prompt = ""
-if 'user_api_key' not in st.session_state:
-    st.session_state.user_api_key = None
+if "conversation_id"    not in st.session_state: st.session_state.conversation_id    = None
+if "current_response"   not in st.session_state: st.session_state.current_response   = None
+if "quality_metrics"    not in st.session_state: st.session_state.quality_metrics    = None
+if "quality_history"    not in st.session_state: st.session_state.quality_history    = []
+if "session_metrics"    not in st.session_state: st.session_state.session_metrics    = {"queries": [], "latencies": [], "last_latency": None}
+if "top_k"              not in st.session_state: st.session_state.top_k              = 5
+if "show_context"       not in st.session_state: st.session_state.show_context       = False
+if "custom_system_prompt" not in st.session_state: st.session_state.custom_system_prompt = ""
+if "user_api_key"       not in st.session_state: st.session_state.user_api_key       = None
+if "chat_mode"          not in st.session_state: st.session_state.chat_mode          = False
 
 
 # ── Backend helpers ────────────────────────────────────────────────────────────
@@ -140,130 +182,31 @@ def _query_backend(
             detail = resp.json()
         except Exception:
             detail = resp.text
-        raise requests.HTTPError(
-            f"{resp.status_code} {resp.reason}: {detail}",
-            response=resp,
-        )
+        raise requests.HTTPError(f"{resp.status_code} {resp.reason}: {detail}", response=resp)
     return resp.json()
 
 
-def _quality_badge_html(evidence_quality: str) -> str:
-    color, label = _QUALITY_BADGES.get(
-        evidence_quality, ("#546e7a", evidence_quality.replace("_", " ").title())
-    )
-    return (
-        f"<span style='background:{color};color:white;padding:3px 12px;"
-        f"border-radius:12px;font-size:0.85em;font-weight:600'>{label}</span>"
-    )
+def _design_badge(design: str) -> str:
+    color = _DESIGN_COLORS.get(design, "#9ca3af")
+    label = design.replace("_", " ").title()
+    return f"<span class='design-badge' style='background:{color};'>{label}</span>"
 
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
-
-def display_sidebar() -> None:
-    with st.sidebar:
-        st.markdown("### 🔑 API Access")
-        user_api_key = st.text_input(
-            "Access Key",
-            type="password",
-            placeholder="Provided by administrator",
-            help="Enter the access key provided to you.",
-            key="api_key_input"
-        )
-        if user_api_key:
-            st.session_state.user_api_key = user_api_key
-            st.success("✅ Key active — Unlimited queries")
-        else:
-            st.session_state.user_api_key = None
-            st.caption("Contact the administrator to obtain a key.")
-
-        with st.expander("🔒 Access & Security", expanded=False):
-            st.caption("""
-            - Keys are managed per user
-            - Rate limiting enforced server-side
-            - All queries logged for quality monitoring
-            """)
-
-        st.divider()
-        st.markdown("### 📊 Session Stats")
-        metrics = st.session_state.session_metrics
-        queries_count = len(metrics['queries'])
-        if queries_count > 0:
-            latencies = metrics['latencies']
-            avg_latency = sum(latencies) / len(latencies)
-            last_latency = metrics.get('last_latency')
-            st.markdown(f"""
-```
-Queries:     {queries_count}
-Last query:  {last_latency:.1f}s
-Avg latency: {avg_latency:.1f}s
-```
-            """)
-        else:
-            st.info("No queries yet in this session.")
+def _ev_pill(quality: str) -> str:
+    color, label = _QUALITY_BADGES.get(quality, ("#6b7280", quality.replace("_", " ").title()))
+    return f"<span class='ev-pill' style='background:{color};'>{label}</span>"
 
 
-# ── Query helpers ──────────────────────────────────────────────────────────────
-
-def format_answer_with_citations(answer: str, sources: list) -> str:
-    formatted = answer
+def _format_citations(answer: str, sources: list) -> str:
     for i, source in enumerate(sources):
         tag = f"[Doc {i + 1}]"
         title = (source.get("title") or "")[:60]
-        if tag in formatted:
-            formatted = formatted.replace(
-                tag,
-                f'<span class="citation" title="{title}...">{tag}</span>',
-            )
-    return formatted
+        if tag in answer:
+            answer = answer.replace(tag, f'<span class="citation" title="{title}">{tag}</span>')
+    return answer
 
 
-def display_sources(sources: list, show_context: bool) -> None:
-    st.markdown("### 📚 Sources")
-    for idx, source in enumerate(sources, 1):
-        title = (source.get("title") or "Unknown")[:70]
-        year = source.get("year", "")
-        design = source.get("study_design", "unknown")
-        sample_size = source.get("sample_size")
-        pmid = source.get("pmid", "")
-        authors = source.get("authors", "")
-        journal = source.get("journal", "")
-        key_finding = source.get("key_finding", "")
-        header = f"**[{idx}] {title}**" + (f"  ({year})" if year else "")
-        with st.expander(header, expanded=False):
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.caption("**Study Design**")
-                color = _DESIGN_COLORS.get(design, "#7f7f7f")
-                st.markdown(
-                    f"<span style='background:{color};color:white;padding:2px 8px;"
-                    f"border-radius:10px;font-size:0.8em'>"
-                    f"{design.replace('_', ' ').title()}</span>",
-                    unsafe_allow_html=True,
-                )
-            with col2:
-                st.caption("**Sample Size**")
-                st.text(str(sample_size) if sample_size else "N/A")
-            with col3:
-                st.caption("**Section**")
-                st.text(source.get("section") or "N/A")
-            with col4:
-                st.caption("**PMID**")
-                if pmid:
-                    st.markdown(f"[{pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid})")
-                else:
-                    st.text("N/A")
-            if authors or journal:
-                st.caption(f"_{authors}. {journal} {year}_".strip(". "))
-            st.divider()
-            if show_context:
-                st.caption("**Key Finding:**")
-                st.text(key_finding)
-            else:
-                st.caption("**Preview:**")
-                st.text(key_finding[:200] + ("…" if len(key_finding) > 200 else ""))
-
-
-def evaluate_response_quality(query: str, answer: str, sources: list) -> dict:
+def _evaluate_quality(query: str, answer: str, sources: list) -> dict:
     from src.evaluation.judges import JudgeSet
 
     class _Chunk:
@@ -272,184 +215,402 @@ def evaluate_response_quality(query: str, answer: str, sources: list) -> dict:
             self.metadata = metadata
 
     chunks = [
-        _Chunk(
-            text=s.get("key_finding", ""),
-            metadata={"evidence_level": 2, "study_design": s.get("study_design", "unknown")},
-        )
+        _Chunk(s.get("key_finding", ""), {"evidence_level": 2, "study_design": s.get("study_design", "unknown")})
         for s in sources
     ]
     scores = JudgeSet().score_all(question=query, answer=answer, chunks=chunks)
-    return {
-        "faithfulness": scores.faithfulness,
-        "relevance":    scores.answer_relevance,
-        "precision":    scores.context_precision,
-    }
+    return {"faithfulness": scores.faithfulness, "relevance": scores.answer_relevance, "precision": scores.context_precision}
 
 
-def create_metrics_gauge(value: float, title: str):
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=value * 100,
-        title={'text': title},
-        gauge={
-            'axis': {'range': [0, 100]},
-            'bar': {'color': "darkblue"},
-            'steps': [
-                {'range': [0, 60], 'color': "lightgray"},
-                {'range': [60, 80], 'color': "lightblue"},
-                {'range': [80, 100], 'color': "lightgreen"},
-            ],
-            'threshold': {
-                'line': {'color': "red", 'width': 4},
-                'thickness': 0.75,
-                'value': 90,
-            },
-        },
-    ))
-    fig.update_layout(height=250, margin=dict(l=10, r=10, t=50, b=10))
-    return fig
+# ── Sidebar ────────────────────────────────────────────────────────────────────
+
+def display_sidebar() -> None:
+    with st.sidebar:
+        st.markdown("<div class='sb-brand'>🔬 Uro-Onco RAG</div>", unsafe_allow_html=True)
+        st.markdown("<div class='sb-tagline'>Clinical evidence assistant</div>", unsafe_allow_html=True)
+
+        st.markdown("<div class='sb-section'>🔑 Access</div>", unsafe_allow_html=True)
+        user_api_key = st.text_input(
+            "Access key",
+            type="password",
+            placeholder="Provided by administrator",
+            label_visibility="collapsed",
+            key="api_key_input",
+        )
+        if user_api_key:
+            st.session_state.user_api_key = user_api_key
+            st.success("✅ Key active")
+        else:
+            st.session_state.user_api_key = None
+            st.caption("Contact your administrator for a key.")
+
+        with st.expander("🔒 Security", expanded=False):
+            st.caption("• Keys managed per user")
+            st.caption("• Rate limiting enforced server-side")
+            st.caption("• All queries logged for quality monitoring")
+
+        st.divider()
+
+        st.markdown("<div class='sb-section'>📊 Session</div>", unsafe_allow_html=True)
+        sm = st.session_state.session_metrics
+        n = len(sm["queries"])
+        if n > 0:
+            c1, c2 = st.columns(2)
+            with c1:
+                st.metric("Queries", n)
+            with c2:
+                avg = sum(sm["latencies"]) / len(sm["latencies"])
+                st.metric("Avg", f"{avg:.1f}s")
+            if sm.get("last_latency"):
+                st.caption(f"Last query: **{sm['last_latency']:.1f}s**")
+        else:
+            st.caption("No queries yet.")
+
+
+
+# ── Source cards ───────────────────────────────────────────────────────────────
+
+def display_sources(sources: list, show_context: bool) -> None:
+    st.markdown(f"### 📚 Sources ({len(sources)})")
+    for idx, source in enumerate(sources, 1):
+        title      = (source.get("title")  or "Unknown")[:80]
+        year       = source.get("year", "")
+        design     = source.get("study_design", "unknown")
+        sample     = source.get("sample_size")
+        pmid       = source.get("pmid", "")
+        authors    = source.get("authors", "")
+        journal    = source.get("journal", "")
+        key_finding = source.get("key_finding", "")
+        section    = source.get("section", "")
+
+        with st.container(border=True):
+            t_col, y_col = st.columns([6, 1])
+            with t_col:
+                st.markdown(f"**[{idx}] {title}**")
+            with y_col:
+                if year:
+                    st.markdown(
+                        f"<div style='text-align:right;color:#9ca3af;font-size:0.85rem;'>{year}</div>",
+                        unsafe_allow_html=True,
+                    )
+
+            if authors or journal:
+                auth_str = f"{authors[:65]}{'…' if len(authors) > 65 else ''}" if authors else ""
+                jour_str = f" · *{journal}*" if journal else ""
+                st.caption(f"{auth_str}{jour_str}")
+
+            meta: list[str] = [_design_badge(design)]
+            if sample:
+                n_str = f"{sample:,}" if isinstance(sample, int) else str(sample)
+                meta.append(f"<span style='font-size:0.78rem;color:#6b7280;'>N = {n_str}</span>")
+            if section:
+                meta.append(f"<span style='font-size:0.78rem;color:#6b7280;'>§ {section.title()}</span>")
+            if pmid:
+                meta.append(
+                    f"<a href='https://pubmed.ncbi.nlm.nih.gov/{pmid}' target='_blank' "
+                    f"style='font-size:0.78rem;color:#1966D3;text-decoration:none;'>PMID {pmid} ↗</a>"
+                )
+            st.markdown(
+                "<div style='display:flex;gap:0.65rem;align-items:center;flex-wrap:wrap;margin:0.25rem 0;'>"
+                + " ".join(meta) + "</div>",
+                unsafe_allow_html=True,
+            )
+
+            if key_finding:
+                st.markdown("<hr class='thin-rule'>", unsafe_allow_html=True)
+                preview = key_finding if show_context else key_finding[:220] + ("…" if len(key_finding) > 220 else "")
+                st.caption(preview)
+
+
+# ── Query tab ──────────────────────────────────────────────────────────────────
+
+def display_query_tab() -> None:
+    col_main, col_settings = st.columns([3, 1], gap="large")
+
+    # ── Right column: settings (always visible) ────────────────────────────
+    with col_settings:
+        st.markdown("<div class='panel-heading'>⚙️ Query Settings</div>", unsafe_allow_html=True)
+
+        topic_filter = st.selectbox(
+            "Cancer type",
+            _CANCER_TYPES,
+            index=0,
+            help=(
+                "Restrict answers to a single cancer type. "
+                "Use 'All Topics' to search across the entire knowledge base — "
+                "useful for questions that span multiple cancer types or involve shared treatments."
+            ),
+        )
+        st.session_state.top_k = st.slider(
+            "Sources retrieved",
+            min_value=1,
+            max_value=10,
+            value=st.session_state.top_k,
+            help=(
+                "Number of source excerpts used to build the answer. "
+                "Higher values bring in more evidence but may include less directly relevant passages. "
+                "5 is a good default for most clinical questions."
+            ),
+        )
+        st.session_state.show_context = st.checkbox(
+            "Show full source text",
+            value=st.session_state.show_context,
+        )
+
+        st.markdown("<div class='panel-heading' style='margin-top:0.75rem;'>💬 Chat Mode</div>", unsafe_allow_html=True)
+        chat_mode = st.toggle(
+            "Enable Chat Mode",
+            value=st.session_state.chat_mode,
+            key="chat_toggle",
+            help=(
+                "Enables multi-turn conversation mode: the assistant maintains full context "
+                "across follow-up questions, so you can refine, compare, or dig deeper "
+                "without repeating yourself."
+            ),
+        )
+        if chat_mode != st.session_state.chat_mode:
+            st.session_state.chat_mode = chat_mode
+            if chat_mode and st.session_state.conversation_id is None:
+                st.session_state.conversation_id = str(uuid.uuid4())
+            elif not chat_mode:
+                st.session_state.conversation_id = None
+
+        if st.session_state.conversation_id:
+            st.caption(f"Session `{st.session_state.conversation_id[:8]}…`")
+            if st.button("↺ New conversation", use_container_width=True):
+                st.session_state.conversation_id = str(uuid.uuid4())
+                st.session_state.current_response = None
+                st.session_state.quality_metrics = None
+                st.rerun()
+
+        if st.session_state.current_response:
+            resp = st.session_state.current_response
+            st.divider()
+            st.markdown("<div class='panel-heading'>📈 Last Query</div>", unsafe_allow_html=True)
+            m1, m2 = st.columns(2)
+            with m1:
+                st.metric("Sources", resp["num_sources"])
+            with m2:
+                st.metric("Latency", f"{resp['latency']:.1f}s")
+            conf = resp.get("confidence_score", 0.0)
+            st.metric("Confidence", f"{conf:.0%}")
+
+    # ── Left column: query input + results ────────────────────────────────
+    with col_main:
+        st.markdown(
+            "<div style='font-size:1.1rem;font-weight:600;margin-bottom:0.6rem;'>"
+            "Hi! I specialise in urological oncology. What's your clinical question?"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        query = st.text_area(
+            "Query",
+            value=st.session_state.get("query_val", ""),
+            height=130,
+            placeholder=(
+                "e.g. What is the evidence for enzalutamide in metastatic hormone-sensitive "
+                "prostate cancer?"
+            ),
+            key="query_input",
+            label_visibility="collapsed",
+        )
+
+        b1, b2, _ = st.columns([2, 2, 6])
+        with b1:
+            search_button = st.button("🔍 Search", type="primary", use_container_width=True)
+        with b2:
+            clear_button = st.button("✕ Clear", use_container_width=True)
+
+        if clear_button:
+            st.session_state["query_val"] = ""
+            st.session_state["query_input"] = ""
+            st.session_state.current_response = None
+            st.session_state.quality_metrics = None
+            st.rerun()
+
+        st.markdown("<div style='margin-top:1rem;'></div>", unsafe_allow_html=True)
+        with st.expander("📝 Custom Instructions (System prompt)", expanded=True):
+            st.session_state.custom_system_prompt = st.text_area(
+                "Override system prompt",
+                value=st.session_state.custom_system_prompt,
+                height=110,
+                placeholder=(
+                    "Optional. Tell the assistant how to tailor its answers — e.g. "
+                    "'Focus on first-line treatment options only', "
+                    "'Always include survival statistics where available', or "
+                    "'Summarise findings in plain language suitable for a patient consultation'."
+                ),
+                label_visibility="collapsed",
+            )
+
+        if search_button and query:
+            query = query.strip()
+            with st.spinner("Searching 795,000+ chunks…"):
+                start = time.time()
+                try:
+                    cancer_filter = (
+                        []
+                        if topic_filter == "All Topics"
+                        else [topic_filter.lower().replace(" cancer", "").strip()]
+                    )
+                    response = _query_backend(
+                        query=query,
+                        cancer_types=cancer_filter,
+                        top_k=st.session_state.top_k,
+                        conversation_id=st.session_state.conversation_id,
+                        system_prompt=st.session_state.custom_system_prompt or None,
+                    )
+                    latency_ms = response.get("latency_ms", {})
+                    latency = latency_ms.get("total", (time.time() - start) * 1000) / 1000
+
+                    st.session_state.current_response = {
+                        "query":            query,
+                        "answer":           response.get("answer", ""),
+                        "sources":          response.get("sources", []),
+                        "num_sources":      len(response.get("sources", [])),
+                        "latency":          latency,
+                        "evidence_quality": response.get("evidence_quality", "insufficient"),
+                        "confidence_score": response.get("confidence_score", 0.0),
+                    }
+
+                    try:
+                        metrics = _evaluate_quality(query, response.get("answer", ""), response.get("sources", []))
+                        st.session_state.quality_metrics = metrics
+                        st.session_state.quality_history.append({**metrics, "query": query})
+                    except Exception:
+                        st.session_state.quality_metrics = None
+
+                    sm = st.session_state.session_metrics
+                    sm["queries"].append(query)
+                    sm["latencies"].append(latency)
+                    sm["last_latency"] = latency
+
+                except Exception as e:
+                    import traceback
+                    short = str(e).split(":")[0] if ":" in str(e) else str(e)
+                    st.error(f"Query failed — {short}")
+                    with st.expander("Debug info", expanded=False):
+                        st.code(str(e))
+                        st.code(traceback.format_exc())
+
+        elif search_button:
+            st.warning("Please enter a question.")
+
+        # ── Results ───────────────────────────────────────────────────────
+        if st.session_state.current_response:
+            resp = st.session_state.current_response
+            st.divider()
+
+            ev   = resp.get("evidence_quality", "insufficient")
+            pill = _ev_pill(ev)
+            st.markdown(
+                f"<div class='status-bar'>"
+                f"Found <strong>{resp['num_sources']} sources</strong> · "
+                f"{resp['latency']:.1f}s · {pill}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+            with st.container(border=True):
+                st.markdown(
+                    "<div class='answer-body'>"
+                    + _format_citations(resp["answer"], resp["sources"])
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.divider()
+            display_sources(resp["sources"], st.session_state.show_context)
 
 
 # ── System Performance tab ─────────────────────────────────────────────────────
 
-def display_system_performance_tab() -> None:
+def display_performance_tab() -> None:
     st.markdown("## 📊 System Performance")
-
     metrics = st.session_state.quality_metrics
     history = st.session_state.quality_history
 
     if not metrics:
-        st.info("Run a query to see real-time quality metrics for each response.")
-    else:
-        overall = (metrics['faithfulness'] + metrics['relevance'] + metrics['precision']) / 3
-        if overall >= 0.9:
-            st.success(f"✅ Excellent quality: {overall:.1%}")
-        elif overall >= 0.8:
-            st.info(f"✅ Good quality: {overall:.1%}")
-        else:
-            st.warning(f"⚠️ Quality score: {overall:.1%}")
+        st.info("Run a query to see quality metrics for each response.")
+        return
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.plotly_chart(
-                create_metrics_gauge(metrics['faithfulness'], "Faithfulness"),
-                use_container_width=True,
-                config={'displayModeBar': False},
-            )
-            st.caption("Is the answer grounded in sources?")
-        with col2:
-            st.plotly_chart(
-                create_metrics_gauge(metrics['relevance'], "Relevance"),
-                use_container_width=True,
-                config={'displayModeBar': False},
-            )
-            st.caption("Does the answer address the question?")
-        with col3:
-            st.plotly_chart(
-                create_metrics_gauge(metrics['precision'], "Context Precision"),
-                use_container_width=True,
-                config={'displayModeBar': False},
-            )
-            st.caption("Are the retrieved sources relevant?")
+    overall = (metrics["faithfulness"] + metrics["relevance"] + metrics["precision"]) / 3
 
-    # ── Session history ────────────────────────────────────────────────────────
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        delta_color = "normal" if overall >= 0.8 else "inverse"
+        st.metric("Overall", f"{overall:.0%}")
+    with m2:
+        st.metric("Faithfulness", f"{metrics['faithfulness']:.0%}")
+    with m3:
+        st.metric("Relevance", f"{metrics['relevance']:.0%}")
+    with m4:
+        st.metric("Context Precision", f"{metrics['precision']:.0%}")
+
+    st.divider()
+    col_bars, col_explain = st.columns([2, 3], gap="large")
+
+    with col_bars:
+        st.markdown("#### Score breakdown")
+        for label, val in [
+            ("Faithfulness", metrics["faithfulness"]),
+            ("Relevance",    metrics["relevance"]),
+            ("Context Precision", metrics["precision"]),
+        ]:
+            st.markdown(f"**{label}** — {val:.0%}")
+            st.progress(val)
+
+    with col_explain:
+        st.markdown("#### What these scores mean")
+        with st.expander("**Faithfulness** — Is the answer grounded in sources?", expanded=True):
+            st.caption(
+                "Measures whether every factual claim in the answer is traceable to a [Doc N] citation. "
+                "Penalises unsupported clinical directives, missing citations, and numeric claims not present in any retrieved chunk."
+            )
+        with st.expander("**Relevance** — Does the answer address the question?", expanded=True):
+            st.caption(
+                "Measures keyword overlap between the query and answer, length appropriateness, "
+                "and whether the answer directly responds rather than restating the question."
+            )
+        with st.expander("**Context Precision** — Are the retrieved sources on-topic?", expanded=True):
+            st.caption(
+                "Evaluates keyword overlap between retrieved chunks and the query, source diversity "
+                "(multiple independent papers > single source), and section relevance (Results/Conclusion > Methods)."
+            )
+
     if len(history) > 1:
         st.divider()
-        st.markdown("### 📈 Quality Over This Session")
-        overall_scores = [
-            (h['faithfulness'] + h['relevance'] + h['precision']) / 3
-            for h in history
-        ]
+        st.markdown("#### Trend over this session")
+        x = list(range(1, len(history) + 1))
         fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=list(range(1, len(history) + 1)),
-            y=[s * 100 for s in overall_scores],
-            mode='lines+markers',
-            name='Overall',
-            line=dict(color='#1f77b4', width=2),
-            marker=dict(size=8),
-        ))
-        fig.add_trace(go.Scatter(
-            x=list(range(1, len(history) + 1)),
-            y=[h['faithfulness'] * 100 for h in history],
-            mode='lines+markers',
-            name='Faithfulness',
-            line=dict(color='#2ca02c', width=1.5, dash='dot'),
-        ))
-        fig.add_trace(go.Scatter(
-            x=list(range(1, len(history) + 1)),
-            y=[h['relevance'] * 100 for h in history],
-            mode='lines+markers',
-            name='Relevance',
-            line=dict(color='#ff7f0e', width=1.5, dash='dot'),
-        ))
-        fig.add_trace(go.Scatter(
-            x=list(range(1, len(history) + 1)),
-            y=[h['precision'] * 100 for h in history],
-            mode='lines+markers',
-            name='Context Precision',
-            line=dict(color='#9467bd', width=1.5, dash='dot'),
-        ))
+        for name, key, color, dash in [
+            ("Overall",           None,          "#1966D3", "solid"),
+            ("Faithfulness",      "faithfulness", "#059669", "dot"),
+            ("Relevance",         "relevance",    "#d97706", "dot"),
+            ("Context Precision", "precision",    "#7c3aed", "dot"),
+        ]:
+            y = (
+                [(h["faithfulness"] + h["relevance"] + h["precision"]) / 3 * 100 for h in history]
+                if key is None
+                else [h[key] * 100 for h in history]
+            )
+            fig.add_trace(go.Scatter(
+                x=x, y=y,
+                mode="lines+markers",
+                name=name,
+                line=dict(color=color, width=2 if dash == "solid" else 1.5, dash=dash),
+                marker=dict(size=6),
+            ))
         fig.update_layout(
             xaxis_title="Query #",
             yaxis_title="Score (%)",
             yaxis_range=[0, 100],
-            height=320,
-            margin=dict(l=10, r=10, t=20, b=10),
+            height=280,
+            margin=dict(l=10, r=10, t=10, b=10),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
         st.plotly_chart(fig, use_container_width=True)
-
-    # ── How quality is measured ────────────────────────────────────────────────
-    st.divider()
-    st.markdown("### 🔬 How Quality Is Measured")
-    st.caption(
-        "Each response is automatically evaluated using heuristic judges. "
-        "No external API call is made — evaluation runs locally in under a second."
-    )
-
-    with st.expander("**Faithfulness** — Is the answer grounded in sources?", expanded=True):
-        st.write("""
-        Faithfulness measures whether the generated answer is traceable to the retrieved chunks,
-        not fabricated. The judge penalises:
-
-        - **Unsupported clinical directives** — phrases like *"you should take X mg"* without
-          a `[Doc N]` citation score lower
-        - **Missing citations** — answers with no inline references to retrieved sources
-          score lower
-        - **Specificity without grounding** — numerical claims (doses, survival rates) not
-          appearing in any chunk
-
-        A score of **1.0** means every factual claim in the answer is backed by a source.
-        """)
-
-    with st.expander("**Relevance** — Does the answer address the question?", expanded=True):
-        st.write("""
-        Relevance measures how directly the answer responds to what was asked.
-        The judge checks:
-
-        - **Keyword overlap** between the question's key terms and the answer
-        - **Length appropriateness** — very short or evasive answers score lower;
-          padding-heavy answers without substance also score lower
-        - **Direct address** — answers that restate the question without answering it
-          are penalised
-
-        A score of **1.0** means the answer is precisely responsive to the query.
-        """)
-
-    with st.expander("**Context Precision** — Are the retrieved sources on-topic?", expanded=True):
-        st.write("""
-        Context Precision evaluates the quality of the retrieved chunks before generation.
-        It measures:
-
-        - **Keyword overlap** between each source chunk and the original query
-        - **Evidence diversity** — results drawing from multiple independent papers
-          score higher than repeated citations of a single source
-        - **Section relevance** — chunks from results, conclusions, and abstract sections
-          score higher than background or methods sections
-
-        A score of **1.0** means every retrieved chunk is highly relevant to the query.
-        """)
 
 
 # ── About tab ──────────────────────────────────────────────────────────────────
@@ -597,258 +758,26 @@ def main() -> None:
     display_sidebar()
 
     st.markdown("""
-    <div style='border-top:3px solid #1f77b4;margin-top:0.5rem;padding-top:1rem;margin-bottom:1.5rem;'>
-        <div style='font-size:1.9rem;font-weight:800;color:#1966D3;letter-spacing:-0.3px;line-height:1.2;'>
-            🔬 Urological Oncology RAG System
+    <div style='border-left:4px solid #1966D3;padding:0.4rem 1rem;margin-bottom:1.25rem;'>
+        <div style='font-size:1.5rem;font-weight:800;letter-spacing:-0.3px;'>
+            🔬 Urological Oncology RAG
         </div>
-        <div style='font-size:0.95rem;color:#555;margin-top:0.35rem;'>
-            Evidence-based clinical research · AI retrieval-augmented generation
-        </div>
-        <div style='margin-top:0.6rem;display:flex;gap:0.4rem;flex-wrap:wrap;'>
-            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>31,000+ papers</span>
-            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>795K+ chunks</span>
-            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>6 cancer types</span>
-            <span style='background:#e8f4f8;color:#1f77b4;padding:2px 10px;border-radius:10px;font-size:0.78rem;font-weight:600;'>2010–2026</span>
+        <div style='font-size:0.85rem;color:#6b7280;margin-top:0.15rem;'>
+            Evidence-based clinical AI ·
+            <strong style='color:#1966D3;'>31,000+</strong> papers ·
+            <strong style='color:#1966D3;'>795K+</strong> chunks ·
+            <strong style='color:#1966D3;'>6</strong> cancer types ·
+            2010–2026
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["💬 Query", "📊 System Performance", "ℹ️ About"])
+    tab1, tab2, tab3 = st.tabs(["💬 Query", "📊 Performance", "ℹ️ About"])
 
-    # ── Tab 1: Query ───────────────────────────────────────────────────────────
     with tab1:
-
-        # What is This / How It Works
-        with st.expander("💡 What is this app about?" + " " * 10 + "🔄 How does it work?", expanded=False):
-            info_col1, _, info_col2 = st.columns([9, 1, 9])
-            with info_col1:
-                st.markdown("#### 💡 What is this app about?")
-                st.write("""
-                An AI-powered research assistant providing evidence-based answers from **31,000+**
-                peer-reviewed papers across **6 urological cancer types**. Uses advanced RAG
-                architecture to deliver accurate, cited responses with zero hallucination.
-                """)
-            with _:
-                st.markdown("<div style='border-left:1px solid #ddd;min-height:120px;height:100%;'></div>", unsafe_allow_html=True)
-            with info_col2:
-                st.markdown("#### 🔄 How It Works")
-                fc1, fc2, fc3, fc4 = st.columns(4)
-                with fc1:
-                    st.markdown(
-                        "<div style='text-align:center'>"
-                        "<div style='font-size:1.8rem'>❓</div>"
-                        "<div style='font-weight:bold'>Ask</div>"
-                        "<div style='font-size:0.8rem;color:#666'>Your question</div>"
-                        "</div>",
-                        unsafe_allow_html=True,
-                    )
-                with fc2:
-                    st.markdown(
-                        "<div style='text-align:center'>"
-                        "<div style='font-size:1.8rem'>🔍</div>"
-                        "<div style='font-weight:bold'>Search</div>"
-                        "<div style='font-size:0.8rem;color:#666'>795K+ chunks</div>"
-                        "</div>",
-                        unsafe_allow_html=True,
-                    )
-                with fc3:
-                    st.markdown(
-                        "<div style='text-align:center'>"
-                        "<div style='font-size:1.8rem'>🤖</div>"
-                        "<div style='font-weight:bold'>Generate</div>"
-                        "<div style='font-size:0.8rem;color:#666'>AI answer</div>"
-                        "</div>",
-                        unsafe_allow_html=True,
-                    )
-                with fc4:
-                    st.markdown(
-                        "<div style='text-align:center'>"
-                        "<div style='font-size:1.8rem'>📚</div>"
-                        "<div style='font-weight:bold'>Cite</div>"
-                        "<div style='font-size:0.8rem;color:#666'>Source papers</div>"
-                        "</div>",
-                        unsafe_allow_html=True,
-                    )
-
-        st.divider()
-
-        # Query section
-        st.markdown(
-            "<h3 style='margin-bottom:0;'>Hi! I specialise in urological oncology.</h3>"
-            "<h3 style='margin-top:0.1rem;'>What's your clinical question?</h3>",
-            unsafe_allow_html=True,
-        )
-
-        topic_filter = st.selectbox(
-            "Search in:",
-            [
-                "All Topics",
-                "Prostate Cancer",
-                "Bladder Cancer",
-                "Kidney Cancer",
-                "Testicular Cancer",
-                "Penile Cancer",
-                "Adrenal Cancer",
-            ],
-            index=0,
-            help="Filter results to a specific cancer type",
-        )
-
-        query = st.text_area(
-            "Your question:",
-            value=st.session_state.get("query", ""),
-            height=200,
-            placeholder="Ask about treatment options, diagnosis, biomarkers, side effects, clinical trials…",
-            key="query_input",
-            label_visibility="collapsed",
-        )
-
-        # Search + Clear
-        btn_col1, btn_col2 = st.columns([1, 3])
-        with btn_col1:
-            search_button = st.button("🚀 Search", type="primary", use_container_width=True)
-        with btn_col2:
-            clear_button = st.button("🗑️ Clear", use_container_width=True)
-
-        # Chat controls
-        chat_col1, chat_col2 = st.columns([1, 1])
-        with chat_col1:
-            if st.button("🔄 Reset Chat", use_container_width=True):
-                st.session_state.conversation_id = str(uuid.uuid4())
-                st.session_state.current_response = None
-                st.session_state.quality_metrics = None
-                st.rerun()
-        with chat_col2:
-            context_mode = st.checkbox(
-                "💬 Enable Chat Mode",
-                value=st.session_state.conversation_id is not None,
-                help="Multi-turn conversation with context awareness",
-            )
-
-        if context_mode and st.session_state.conversation_id is None:
-            st.session_state.conversation_id = str(uuid.uuid4())
-        elif not context_mode:
-            st.session_state.conversation_id = None
-
-        if st.session_state.conversation_id:
-            st.caption("💬 Chat mode active")
-
-        # Query settings
-        st.markdown("#### ⚙️ Query Settings")
-        st.session_state.top_k = st.slider(
-            "Number of sources",
-            min_value=1,
-            max_value=10,
-            value=st.session_state.top_k,
-            help="Number of relevant chunks retrieved before reranking",
-        )
-        st.session_state.show_context = st.checkbox(
-            "Show full source text",
-            value=st.session_state.show_context,
-            help="Show complete key finding instead of a short preview",
-        )
-        st.session_state.custom_system_prompt = st.text_area(
-            "Custom instructions (overrides default system prompt)",
-            value=st.session_state.custom_system_prompt,
-            height=150,
-            placeholder=(
-                "Optional. Paste a custom system prompt here to override the default "
-                "clinical evidence summarization behavior.\n\n"
-                "Example: You are a board-certified urological oncologist. "
-                "Reason step by step and output a structured clinical card."
-            ),
-            help="When set, replaces the backend's default system prompt for this query.",
-        )
-
-        # Execute
-        if clear_button:
-            st.session_state["query"] = ""
-            st.session_state.current_response = None
-            st.session_state.quality_metrics = None
-            st.rerun()
-
-        if search_button and query:
-            query = query.strip()
-            with st.spinner("🔍 Searching knowledge base…"):
-                start_time = time.time()
-                try:
-                    cancer_filter = (
-                        []
-                        if topic_filter == "All Topics"
-                        else [topic_filter.lower().replace(" cancer", "").strip()]
-                    )
-                    response = _query_backend(
-                        query=query,
-                        cancer_types=cancer_filter,
-                        top_k=st.session_state.top_k,
-                        conversation_id=st.session_state.conversation_id,
-                        system_prompt=st.session_state.custom_system_prompt or None,
-                    )
-                    latency_ms = response.get("latency_ms", {})
-                    latency = latency_ms.get("total", (time.time() - start_time) * 1000) / 1000
-
-                    st.session_state.current_response = {
-                        "query":            query,
-                        "answer":           response.get("answer", ""),
-                        "sources":          response.get("sources", []),
-                        "num_sources":      len(response.get("sources", [])),
-                        "latency":          latency,
-                        "evidence_quality": response.get("evidence_quality", "insufficient"),
-                        "confidence_score": response.get("confidence_score", 0.0),
-                    }
-
-                    # Auto quality evaluation
-                    try:
-                        metrics = evaluate_response_quality(
-                            query,
-                            response.get("answer", ""),
-                            response.get("sources", []),
-                        )
-                        st.session_state.quality_metrics = metrics
-                        st.session_state.quality_history.append({**metrics, "query": query})
-                    except Exception:
-                        st.session_state.quality_metrics = None
-
-                    st.session_state.session_metrics["queries"].append(query)
-                    st.session_state.session_metrics["latencies"].append(latency)
-                    st.session_state.session_metrics["last_latency"] = latency
-
-                except Exception as e:
-                    import traceback
-                    err_msg = str(e)
-                    short_msg = err_msg.split(":")[0] if ":" in err_msg else err_msg
-                    st.error(f"❌ Query failed — {short_msg}. See debug info below.")
-                    with st.expander("🐛 Debug Info", expanded=False):
-                        st.code(err_msg)
-                        st.code(traceback.format_exc())
-
-        elif search_button:
-            st.warning("⚠️ Please enter a question")
-
-        # Results
-        if st.session_state.current_response:
-            resp = st.session_state.current_response
-            st.divider()
-            badge_html = _quality_badge_html(resp.get("evidence_quality", "insufficient"))
-            st.markdown(
-                f"✅ Found **{resp['num_sources']}** sources in **{resp['latency']:.2f}s**"
-                f" &nbsp; {badge_html}",
-                unsafe_allow_html=True,
-            )
-            st.divider()
-            st.markdown("### 📄 Answer")
-            st.markdown(
-                format_answer_with_citations(resp["answer"], resp["sources"]),
-                unsafe_allow_html=True,
-            )
-            st.divider()
-            display_sources(resp["sources"], st.session_state.show_context)
-
-    # ── Tab 2: System Performance ──────────────────────────────────────────────
+        display_query_tab()
     with tab2:
-        display_system_performance_tab()
-
-    # ── Tab 3: About ───────────────────────────────────────────────────────────
+        display_performance_tab()
     with tab3:
         display_about_tab()
 
