@@ -576,34 +576,48 @@ def display_performance_tab() -> None:
 
     if len(history) > 1:
         st.divider()
-        st.markdown("#### Trend over this session")
-        x = list(range(1, len(history) + 1))
-        fig = go.Figure()
-        for name, key, color, dash in [
-            ("Overall",           None,          "#1966D3", "solid"),
-            ("Faithfulness",      "faithfulness", "#059669", "dot"),
-            ("Relevance",         "relevance",    "#d97706", "dot"),
-            ("Context Precision", "precision",    "#7c3aed", "dot"),
-        ]:
-            y = (
+        st.markdown("#### Quality scores over this session")
+        metrics_keys = [
+            ("Overall",           None),
+            ("Faithfulness",      "faithfulness"),
+            ("Relevance",         "relevance"),
+            ("Context Precision", "precision"),
+        ]
+        z, text, x_labels = [], [], []
+        for i, h in enumerate(history, 1):
+            short = (h["query"][:30] + "…") if len(h["query"]) > 30 else h["query"]
+            x_labels.append(f"Q{i}: {short}")
+        for label, key in metrics_keys:
+            row_vals = (
                 [(h["faithfulness"] + h["relevance"] + h["precision"]) / 3 * 100 for h in history]
                 if key is None
                 else [h[key] * 100 for h in history]
             )
-            fig.add_trace(go.Scatter(
-                x=x, y=y,
-                mode="lines+markers",
-                name=name,
-                line=dict(color=color, width=2 if dash == "solid" else 1.5, dash=dash),
-                marker=dict(size=6),
-            ))
+            z.append(row_vals)
+            text.append([f"{v:.0f}%" for v in row_vals])
+        fig = go.Figure(go.Heatmap(
+            z=z,
+            x=x_labels,
+            y=[label for label, _ in metrics_keys],
+            text=text,
+            texttemplate="%{text}",
+            textfont=dict(size=13, color="white"),
+            colorscale=[
+                [0.0,  "#dc2626"],
+                [0.5,  "#d97706"],
+                [0.75, "#059669"],
+                [1.0,  "#1e7e34"],
+            ],
+            zmin=0, zmax=100,
+            showscale=True,
+            colorbar=dict(title="Score", ticksuffix="%", thickness=12),
+            hovertemplate="%{x}<br>%{y}: %{text}<extra></extra>",
+        ))
         fig.update_layout(
-            xaxis_title="Query #",
-            yaxis_title="Score (%)",
-            yaxis_range=[0, 100],
-            height=280,
-            margin=dict(l=10, r=10, t=10, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            height=210,
+            margin=dict(l=10, r=10, t=10, b=80),
+            xaxis=dict(tickangle=-30, tickfont=dict(size=11)),
+            yaxis=dict(tickfont=dict(size=12)),
         )
         st.plotly_chart(fig, use_container_width=True)
 
