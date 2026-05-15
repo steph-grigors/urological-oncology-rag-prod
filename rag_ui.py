@@ -262,7 +262,7 @@ def display_sidebar() -> None:
 
         st.divider()
 
-        st.markdown("<div class='sb-section'>📈 Last Query</div>", unsafe_allow_html=True)
+        st.markdown("<div class='sb-section'>📊 Session Info</div>", unsafe_allow_html=True)
         if st.session_state.current_response:
             resp = st.session_state.current_response
             c1, c2 = st.columns(2)
@@ -270,10 +270,15 @@ def display_sidebar() -> None:
                 st.metric("Sources", resp["num_sources"])
             with c2:
                 st.metric("Latency", f"{resp['latency']:.1f}s")
-            conf = resp.get("confidence_score", 0.0)
-            st.metric("Confidence", f"{conf:.0%}")
         else:
             st.caption("No query yet.")
+        sm = st.session_state.session_metrics
+        query_count = len(sm["queries"])
+        st.metric("Queries this session", query_count)
+        chat_on = st.session_state.chat_mode
+        st.caption(f"Chat mode: {'🟢 On' if chat_on else '⚪ Off'}")
+        if st.session_state.conversation_id:
+            st.caption(f"Conversation `{st.session_state.conversation_id[:8]}…`")
 
 
 
