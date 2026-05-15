@@ -499,12 +499,7 @@ def display_query_tab() -> None:
             )
 
             with st.container(border=True):
-                st.markdown(
-                    "<div class='answer-body'>"
-                    + _format_citations(resp["answer"], resp["sources"])
-                    + "</div>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(_format_citations(resp["answer"], resp["sources"]), unsafe_allow_html=True)
 
             st.divider()
             display_sources(resp["sources"], st.session_state.show_context)
