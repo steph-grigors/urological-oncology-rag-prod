@@ -94,6 +94,10 @@ st.markdown("""
         margin-bottom: 0.4rem;
         margin-top: 0.1rem;
     }
+    /* ── Sidebar input placeholder ── */
+    section[data-testid="stSidebar"] input::placeholder {
+        font-size: 0.78rem;
+    }
     /* ── Answer container ── */
     .answer-body {
         line-height: 1.8;
