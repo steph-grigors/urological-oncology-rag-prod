@@ -776,7 +776,7 @@ def main() -> None:
             <strong style='color:#1966D3;'>31,000+</strong> papers ·
             <strong style='color:#1966D3;'>795K+</strong> chunks ·
             <strong style='color:#1966D3;'>6</strong> cancer types ·
-            2010–2026
+            <strong style='color:#1966D3;'>2010–2026</strong>
         </div>
     </div>
     """, unsafe_allow_html=True)
