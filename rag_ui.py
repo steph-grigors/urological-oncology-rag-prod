@@ -267,15 +267,17 @@ def display_sidebar() -> None:
         st.divider()
 
         st.markdown("<div class='sb-section'>📊 Session Info</div>", unsafe_allow_html=True)
-        if st.session_state.current_response:
-            resp = st.session_state.current_response
-            c1, c2 = st.columns(2)
-            with c1:
-                st.metric("Sources", resp["num_sources"])
-            with c2:
-                st.metric("Latency", f"{resp['latency']:.1f}s")
+        if st.session_state.conversation_id:
+            st.caption(f"Session `{st.session_state.conversation_id[:8]}…`")
         sm = st.session_state.session_metrics
+        last_lat = sm.get("last_latency")
+        avg_lat = (sum(sm["latencies"]) / len(sm["latencies"])) if sm["latencies"] else None
         query_count = len(sm["queries"])
+        c1, c2 = st.columns(2)
+        with c1:
+            st.metric("Last query", f"{last_lat:.1f}s" if last_lat is not None else "—")
+        with c2:
+            st.metric("Avg latency", f"{avg_lat:.1f}s" if avg_lat is not None else "—")
         st.metric("Queries this session", query_count)
 
 
@@ -388,7 +390,6 @@ def display_query_tab() -> None:
                 st.session_state.conversation_id = None
 
         if st.session_state.conversation_id:
-            st.caption(f"Session `{st.session_state.conversation_id[:8]}…`")
             if st.button("↺ New conversation", use_container_width=True):
                 st.session_state.conversation_id = str(uuid.uuid4())
                 st.session_state.current_response = None
@@ -576,45 +577,46 @@ def display_performance_tab() -> None:
 
     if len(history) >= 1:
         st.divider()
-        st.markdown("#### Quality scores over this session")
-        metrics_keys = [
-            ("Overall",           None),
-            ("Faithfulness",      "faithfulness"),
-            ("Relevance",         "relevance"),
-            ("Context Precision", "precision"),
+        st.markdown("#### Overall quality score over this session")
+        x_labels = [f"Q{i}" for i in range(1, len(history) + 1)]
+        overall_scores = [
+            (h["faithfulness"] + h["relevance"] + h["precision"]) / 3 * 100
+            for h in history
         ]
-        z, x_labels = [], []
-        for i, h in enumerate(history, 1):
-            short = (h["query"][:30] + "…") if len(h["query"]) > 30 else h["query"]
-            x_labels.append(f"Q{i}: {short}")
-        for label, key in metrics_keys:
-            row_vals = (
-                [(h["faithfulness"] + h["relevance"] + h["precision"]) / 3 * 100 for h in history]
-                if key is None
-                else [h[key] * 100 for h in history]
-            )
-            z.append(row_vals)
-        fig = go.Figure(go.Heatmap(
-            z=z,
+        hover_text = [
+            f"Q{i}: {h['query'][:50]}{'…' if len(h['query']) > 50 else ''}<br>Overall: {overall_scores[i-1]:.0f}%<br>Faithfulness: {h['faithfulness']:.0%}<br>Relevance: {h['relevance']:.0%}<br>Precision: {h['precision']:.0%}"
+            for i, h in enumerate(history, 1)
+        ]
+        fig = go.Figure()
+        fig.add_hrect(
+            y0=80, y1=100,
+            fillcolor="#059669", opacity=0.07,
+            layer="below", line_width=0,
+        )
+        fig.add_hline(
+            y=80,
+            line=dict(color="#059669", width=1.5, dash="dot"),
+            annotation_text="80% target",
+            annotation_position="top right",
+            annotation_font=dict(size=11, color="#059669"),
+        )
+        fig.add_trace(go.Scatter(
             x=x_labels,
-            y=[label for label, _ in metrics_keys],
-            texttemplate="%{z:.0f}%",
-            colorscale=[
-                [0.0,  "#dc2626"],
-                [0.5,  "#d97706"],
-                [0.75, "#059669"],
-                [1.0,  "#1e7e34"],
-            ],
-            zmin=0, zmax=100,
-            showscale=True,
-            colorbar=dict(title="Score", ticksuffix="%", thickness=12),
-            hovertemplate="%{x}<br>%{y}: %{z:.0f}%<extra></extra>",
+            y=overall_scores,
+            mode="lines+markers",
+            line=dict(color="#1966D3", width=3),
+            marker=dict(size=9, color="#1966D3", line=dict(color="white", width=2)),
+            hovertext=hover_text,
+            hoverinfo="text",
+            showlegend=False,
         ))
         fig.update_layout(
-            height=210,
-            margin=dict(l=10, r=10, t=10, b=80),
-            xaxis=dict(tickangle=-30, tickfont=dict(size=11)),
-            yaxis=dict(tickfont=dict(size=12)),
+            yaxis=dict(range=[0, 100], ticksuffix="%", tickfont=dict(size=11)),
+            xaxis=dict(tickfont=dict(size=11)),
+            height=240,
+            margin=dict(l=10, r=10, t=10, b=10),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
         )
         st.plotly_chart(fig, use_container_width=True)
 
