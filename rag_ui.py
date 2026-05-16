@@ -271,7 +271,12 @@ def display_sidebar() -> None:
 
         st.markdown("<div class='sb-section'>📊 Session Info</div>", unsafe_allow_html=True)
         if st.session_state.conversation_id:
-            st.caption(f"Session `{st.session_state.conversation_id[:8]}…`")
+            cid = st.session_state.conversation_id[:8] + "…"
+            st.markdown(
+                f"<div style='font-size:0.75rem;color:#6b7280;margin-bottom:0.1rem;'>Session ID</div>"
+                f"<div style='font-size:1.1rem;font-weight:600;color:#059669;font-family:monospace;margin-bottom:0.6rem;'>{cid}</div>",
+                unsafe_allow_html=True,
+            )
         c1, c2 = st.columns(2)
         with c1:
             last_lat = st.session_state.last_latency
