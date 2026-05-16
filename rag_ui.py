@@ -166,7 +166,10 @@ if "conversation_id"    not in st.session_state: st.session_state.conversation_i
 if "current_response"   not in st.session_state: st.session_state.current_response   = None
 if "quality_metrics"    not in st.session_state: st.session_state.quality_metrics    = None
 if "quality_history"    not in st.session_state: st.session_state.quality_history    = []
-if "session_metrics"    not in st.session_state: st.session_state.session_metrics    = {"queries": [], "latencies": [], "last_latency": None}
+if "query_count"        not in st.session_state: st.session_state.query_count        = 0
+if "last_latency"       not in st.session_state: st.session_state.last_latency       = None
+if "avg_latency"        not in st.session_state: st.session_state.avg_latency        = None
+if "latency_sum"        not in st.session_state: st.session_state.latency_sum        = 0.0
 if "top_k"              not in st.session_state: st.session_state.top_k              = 5
 if "show_context"       not in st.session_state: st.session_state.show_context       = False
 if "custom_system_prompt" not in st.session_state: st.session_state.custom_system_prompt = ""
@@ -269,16 +272,14 @@ def display_sidebar() -> None:
         st.markdown("<div class='sb-section'>📊 Session Info</div>", unsafe_allow_html=True)
         if st.session_state.conversation_id:
             st.caption(f"Session `{st.session_state.conversation_id[:8]}…`")
-        sm = st.session_state.session_metrics
-        last_lat = sm.get("last_latency")
-        avg_lat = (sum(sm["latencies"]) / len(sm["latencies"])) if sm["latencies"] else None
-        query_count = len(sm["queries"])
         c1, c2 = st.columns(2)
         with c1:
+            last_lat = st.session_state.last_latency
             st.metric("Last query", f"{last_lat:.1f}s" if last_lat is not None else "—")
         with c2:
+            avg_lat = st.session_state.avg_latency
             st.metric("Avg latency", f"{avg_lat:.1f}s" if avg_lat is not None else "—")
-        st.metric("Queries this session", query_count)
+        st.metric("Queries this session", st.session_state.query_count)
 
 
 
@@ -482,10 +483,10 @@ def display_query_tab() -> None:
                     except Exception:
                         st.session_state.quality_metrics = None
 
-                    sm = st.session_state.session_metrics
-                    sm["queries"].append(query)
-                    sm["latencies"].append(latency)
-                    sm["last_latency"] = latency
+                    st.session_state.query_count  += 1
+                    st.session_state.last_latency  = latency
+                    st.session_state.latency_sum  += latency
+                    st.session_state.avg_latency   = st.session_state.latency_sum / st.session_state.query_count
 
                 except Exception as e:
                     import traceback
