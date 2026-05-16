@@ -399,7 +399,12 @@ def display_query_tab() -> None:
             if st.button("↺ New conversation", use_container_width=True):
                 st.session_state.conversation_id = str(uuid.uuid4())
                 st.session_state.current_response = None
-                st.session_state.quality_metrics = None
+                st.session_state.quality_metrics  = None
+                st.session_state.quality_history  = []
+                st.session_state.query_count      = 0
+                st.session_state.last_latency     = None
+                st.session_state.avg_latency      = None
+                st.session_state.latency_sum      = 0.0
                 st.rerun()
 
     # ── Left column: query input + results ────────────────────────────────
