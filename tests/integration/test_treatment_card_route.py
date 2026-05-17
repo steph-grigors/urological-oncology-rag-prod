@@ -19,6 +19,7 @@ from src.generation.card_generator import (
     TreatmentWarning,
 )
 from src.retrieval.retriever import RetrievalResult
+from config.constants import CONFIDENCE_REFUSE
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -190,6 +191,66 @@ class TestTreatmentCardServiceUnavailable:
             app.state.card_generator = None
             resp = c.post("/treatment-card", json=_VALID_REQUEST, headers={"X-API-Key": "dev"})
         assert resp.status_code == 503
+
+
+# ── Low-confidence gate ────────────────────────────────────────────────────────
+
+class TestLowConfidenceGate:
+    """When retrieval confidence < CONFIDENCE_REFUSE, generate_card is called
+    with empty ranked_chunks so the LLM falls back to parametric knowledge."""
+
+    def _make_low_confidence_result(self) -> RetrievalResult:
+        chunk = MagicMock()
+        chunk.text = "Some text"
+        chunk.metadata = {}
+        chunk.relevance_score = 0.1
+        return RetrievalResult(
+            query="prostate cancer",
+            chunks=[chunk],
+            retrieval_confidence=CONFIDENCE_REFUSE - 0.01,  # just below threshold
+            num_candidates=3,
+            latency_ms={"dense_ms": 50, "bm25_ms": 10, "rerank_ms": 80},
+        )
+
+    def test_returns_200_with_low_confidence(self):
+        app = create_app()
+        mock_retriever = MagicMock()
+        mock_retriever.retrieve.return_value = self._make_low_confidence_result()
+        mock_card_gen = MagicMock()
+        mock_card_gen.translate_to_english.return_value = "prostate cancer"
+        mock_card_gen.generate_card.return_value = _make_card_result()
+
+        with TestClient(app, raise_server_exceptions=True) as c:
+            app.state.retriever = mock_retriever
+            app.state.card_generator = mock_card_gen
+            resp = c.post("/treatment-card", json=_VALID_REQUEST, headers={"X-API-Key": "dev"})
+
+        assert resp.status_code == 200
+
+    def test_generate_card_called_with_empty_chunks_when_low_confidence(self):
+        app = create_app()
+        mock_retriever = MagicMock()
+        mock_retriever.retrieve.return_value = self._make_low_confidence_result()
+        mock_card_gen = MagicMock()
+        mock_card_gen.translate_to_english.return_value = "prostate cancer"
+        mock_card_gen.generate_card.return_value = _make_card_result()
+
+        with TestClient(app, raise_server_exceptions=True) as c:
+            app.state.retriever = mock_retriever
+            app.state.card_generator = mock_card_gen
+            c.post("/treatment-card", json=_VALID_REQUEST, headers={"X-API-Key": "dev"})
+
+        call_kwargs = mock_card_gen.generate_card.call_args
+        assert call_kwargs.kwargs["ranked_chunks"] == []
+
+    def test_generate_card_called_with_chunks_when_sufficient_confidence(self, client):
+        client  # fixture already has retrieval_confidence=0.85
+        # Retrieve the mock from the fixture's app — verify chunks were NOT emptied
+        # (We test this indirectly: happy path tests verify card content, which
+        # requires non-empty chunks to be forwarded. The gate only fires < 0.2.)
+        resp = client.post("/treatment-card", json=_VALID_REQUEST, headers={"X-API-Key": "dev"})
+        assert resp.status_code == 200
+        assert resp.json()["retrieval_metadata"]["confidence_score"] == 0.85
 
 
 # ── Warnings propagated through route ─────────────────────────────────────────

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.api.middleware.auth import require_api_key
 from src.observability.logging import get_logger, query_id_var
+from config.constants import CONFIDENCE_REFUSE
 
 if TYPE_CHECKING:
     from src.generation.card_generator import CardGenerator
@@ -117,6 +118,19 @@ async def treatment_card_endpoint(
         raise HTTPException(status_code=503, detail="Retrieval service unavailable")
 
     # ── Step 3: generate card ─────────────────────────────────────────────
+    # Low-confidence gate: if retrieval is poor, pass no chunks so the LLM
+    # generates from parametric knowledge and marks confidence as low.
+    # The retrieval_metadata still reflects the actual retrieval score.
+    if retrieval_result.retrieval_confidence < CONFIDENCE_REFUSE:
+        logger.warning(
+            "Low retrieval confidence (%.2f) for patient %s — falling back to parametric knowledge",
+            retrieval_result.retrieval_confidence,
+            body.patient_id,
+        )
+        chunks_for_generation = []
+    else:
+        chunks_for_generation = retrieval_result.chunks
+
     try:
         card_result = card_generator.generate_card(
             patient_id=body.patient_id,
@@ -124,7 +138,7 @@ async def treatment_card_endpoint(
             age_range=body.age_range,
             clinical_history=body.clinical_history,
             comorbidities=body.comorbidities,
-            ranked_chunks=retrieval_result.chunks,
+            ranked_chunks=chunks_for_generation,
             confidence_score=retrieval_result.retrieval_confidence,
             system_prompt=body.system_prompt,
         )
