@@ -1,0 +1,63 @@
+{
+  "last_updated": "2026-05-17T16:11:42Z",
+  "source": "automated (openFDA API + Claude-assisted web extraction)",
+  "entries": [
+    {
+      "drug": "atezolizumab",
+      "aliases": [
+        "tecentriq"
+      ],
+      "indication": "first-line platinum-ineligible urothelial carcinoma",
+      "indication_keywords": [
+        "urothelial",
+        "bladder",
+        "platinum-ineligible",
+        "cisplatin-ineligible",
+        "platine",
+        "urothelial carcinoma"
+      ],
+      "jurisdiction": "EMA",
+      "status": "withdrawn",
+      "date": "2021-09",
+      "warning": "Atezolizumab (Tecentriq) — EMA approval for first-line platinum-ineligible urothelial carcinoma was voluntarily withdrawn in September 2021 following the IMVIGOR110 confirmatory trial (no overall survival benefit). Verify current regulatory status before recommending.",
+      "source": "manual"
+    },
+    {
+      "drug": "atezolizumab",
+      "aliases": [
+        "tecentriq"
+      ],
+      "indication": "first-line platinum-ineligible urothelial carcinoma",
+      "indication_keywords": [
+        "urothelial",
+        "bladder",
+        "platinum-ineligible",
+        "cisplatin-ineligible",
+        "urothelial carcinoma"
+      ],
+      "jurisdiction": "FDA",
+      "status": "withdrawn",
+      "date": "2021-09",
+      "warning": "Atezolizumab (Tecentriq) — FDA accelerated approval for platinum-ineligible urothelial carcinoma was voluntarily withdrawn in September 2021 (IMVIGOR010 results). Verify current regulatory status before recommending.",
+      "source": "manual"
+    },
+    {
+      "drug": "rucaparib",
+      "aliases": [
+        "rubraca"
+      ],
+      "indication": "BRCA-mutated metastatic CRPC",
+      "indication_keywords": [
+        "prostate",
+        "crpc",
+        "castration-resistant",
+        "mcrpc"
+      ],
+      "jurisdiction": "FDA",
+      "status": "withdrawn",
+      "date": "2022-10",
+      "warning": "Rucaparib (Rubraca) — FDA approval for BRCA-mutated metastatic CRPC was voluntarily withdrawn in October 2022 (sponsor request). Verify current regulatory status before recommending.",
+      "source": "manual"
+    }
+  ]
+}
