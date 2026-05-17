@@ -270,7 +270,7 @@ class CardGenerator:
         treatment_names = [t.get("drug", "") for t in treatment_list if t.get("drug")]
 
         if stage_raw and treatment_names:
-            intent_map = self._reclassify_intent(stage_raw, treatment_names)
+            intent_map = self._reclassify_intent(stage_raw, treatment_names, active_system)
             for t in treatment_list:
                 drug = t.get("drug", "")
                 for key, intent in intent_map.items():
@@ -292,7 +292,10 @@ class CardGenerator:
         stage = _strip_doc_tags(stage_raw)
         guideline = _strip_doc_tags(card_data.get("guideline", ""))
         comorbidities_impact = _strip_doc_tags(card_data.get("comorbidities_impact", ""))
-        sources = [_strip_doc_tags(s) for s in card_data.get("sources", [])]
+        sources_raw = card_data.get("sources", [])
+        if isinstance(sources_raw, str):
+            sources_raw = [sources_raw]
+        sources = [_strip_doc_tags(s) for s in sources_raw]
 
         # ── Step 6: regulatory withdrawal warnings (French) ───────────────
         patient_context = f"{cancer_type} {clinical_history}".lower()
@@ -327,13 +330,20 @@ class CardGenerator:
         self,
         stage: str,
         treatment_names: list[str],
+        active_system: str = "",
     ) -> dict[str, str]:
         """S1: intent-only LLM call using staging rules, not retrieval framing."""
         names_block = "\n".join(f"- {n}" for n in treatment_names)
         prompt = f"Stage: {stage}\n\nTreatments:\n{names_block}"
+
+        # Mirror the output language of the main card call so intents stay consistent.
+        system = self._INTENT_SYSTEM
+        if "français" in active_system.lower() or "en français" in active_system.lower():
+            system += "\nIMPORTANT: Use French intent labels only: Curatif / Palliatif / Adjuvant."
+
         try:
             resp = self._llm.complete(
-                self._INTENT_SYSTEM,
+                system,
                 [{"role": "user", "content": prompt}],
                 max_tokens=400,
             )
