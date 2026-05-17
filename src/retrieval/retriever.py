@@ -97,14 +97,18 @@ class RAGRetriever:
     embedding_model          : must match the model used at index time
     top_k_retrieval          : candidates to fetch from each retriever
     top_k_rerank             : final chunks returned after reranking
-    source_type_diversity_cap: max chunks from review/guideline study designs that
-                               enter the reranker. Forces primary trial evidence into
-                               the top-N pool. Set to None to disable.
+    source_type_diversity_cap: max chunks with study_design = "review" that enter
+                               the reranker. Forces primary trial evidence into the
+                               top-N pool. Set to None to disable. Default 3 is
+                               intentionally permissive for rare-cancer queries
+                               (penile, adrenal) where reviews are the evidence base.
     """
 
-    # Ingestion short-codes that represent narrative reviews and guidelines.
-    # RCTs, cohorts, and meta-analyses are not capped — only review/unknown.
-    _CAPPED_DESIGNS: frozenset[str] = frozenset({"review", "unknown"})
+    # Only narrative reviews are capped. "unknown" is excluded: it is the
+    # fallback for papers whose study design couldn't be parsed from the
+    # abstract — dropping them risks discarding valid RCTs or cohort studies
+    # that simply had poorly-written abstracts.
+    _CAPPED_DESIGNS: frozenset[str] = frozenset({"review"})
 
     def __init__(
         self,
@@ -115,7 +119,7 @@ class RAGRetriever:
         embedding_model: str = "text-embedding-3-small",
         top_k_retrieval: int = 20,
         top_k_rerank: int = 5,
-        source_type_diversity_cap: Optional[int] = 2,
+        source_type_diversity_cap: Optional[int] = 3,
     ) -> None:
         self._store = store
         self._bm25 = bm25
