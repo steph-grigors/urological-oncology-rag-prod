@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from config.settings import get_settings
 from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.routes import eval as eval_router
-from src.api.routes import health, ingestion as ingestion_router, query
+from src.api.routes import health, ingestion as ingestion_router, query, treatment_card as treatment_card_router
 from src.observability.logging import get_logger, request_id_var, setup_logging
 from src.observability.tracing import setup_tracing
 
@@ -86,9 +86,14 @@ async def lifespan(app: FastAPI):
         )
         app.state.generator = ClinicalGenerator(llm_client=llm_client)
         logger.info("Generator initialised (provider=%s)", settings.generation_provider)
+
+        from src.generation.card_generator import CardGenerator
+        app.state.card_generator = CardGenerator(llm_client=llm_client)
+        logger.info("CardGenerator initialised")
     except Exception as exc:
         logger.warning("Generator not available: %s", exc)
         app.state.generator = None
+        app.state.card_generator = None
 
     # ── Audit logger ───────────────────────────────────────────────────────
     try:
@@ -164,6 +169,7 @@ def create_app() -> FastAPI:
 
     # Routers
     app.include_router(query.router)
+    app.include_router(treatment_card_router.router)
     app.include_router(health.router)
     app.include_router(eval_router.router)
     app.include_router(ingestion_router.router)
