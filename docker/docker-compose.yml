@@ -127,6 +127,15 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command: daemon --docker
     labels:
+      # ── Step 1 (01:00 UTC): refresh regulatory withdrawal database ────────────
+      # Runs 1 hour before ingestion so any newly withdrawn drugs are flagged
+      # in answers produced after the Sunday 08:00 UTC API restart.
+      ofelia.job-run.regulatory-db-update.schedule: "0 1 * * 0"   # Sunday 01:00 UTC
+      ofelia.job-run.regulatory-db-update.container: "uro-rag-api"
+      ofelia.job-run.regulatory-db-update.command: >
+        python scripts/update_regulatory_db.py
+
+      # ── Step 2 (02:00 UTC): incremental paper ingestion ───────────────────────
       ofelia.job-run.weekly-ingestion.schedule: "0 2 * * 0"   # Sunday 02:00 UTC
       ofelia.job-run.weekly-ingestion.container: "uro-rag-api"
       ofelia.job-run.weekly-ingestion.command: >
@@ -134,7 +143,9 @@ services:
         --mode incremental
         --since-date $(date -d '7 days ago' +%Y/%m/%d)
         --limit 2000
-      ofelia.job-local.restart-api-after-ingestion.schedule: "0 8 * * 0"   # Sunday 08:00 UTC (after ingestion)
+
+      # ── Step 3 (08:00 UTC): restart API to reload BM25 cache + new reg. data ──
+      ofelia.job-local.restart-api-after-ingestion.schedule: "0 8 * * 0"   # Sunday 08:00 UTC
       ofelia.job-local.restart-api-after-ingestion.command: >
         curl -sf --unix-socket /var/run/docker.sock
         -X POST http://localhost/v1.41/containers/uro-rag-api/restart

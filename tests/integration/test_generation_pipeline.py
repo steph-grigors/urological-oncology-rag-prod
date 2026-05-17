@@ -379,3 +379,111 @@ class TestEndToEnd:
         anon_key, anon_limit = rl._resolve_key(anon_request)
         assert anon_limit == 10  # _ANON_LIMIT
         assert anon_key.startswith("ip:")
+
+
+# ── TestRegulatoryWarnings ────────────────────────────────────────────────────
+
+class TestRegulatoryWarnings:
+    """Verify regulatory warnings are appended (or not) by ClinicalGenerator."""
+
+    _WITHDRAWAL_ENTRIES = (
+        {
+            "drug": "atezolizumab",
+            "aliases": ["tecentriq"],
+            "indication_keywords": ["urothelial", "bladder", "platinum-ineligible"],
+            "jurisdiction": "EMA",
+            "status": "withdrawn",
+            "warning": "Atezolizumab EMA approval for platinum-ineligible UC was withdrawn (2021).",
+            "source": "manual",
+        },
+    )
+
+    def _chunks(self) -> list[RankedChunk]:
+        return [_ranked_chunk(f"c{i}", 0.8, pmcid=str(i + 1)) for i in range(3)]
+
+    def test_warning_appended_when_drug_and_indication_match(self):
+        from unittest.mock import patch
+
+        llm = _mock_llm(
+            "Atezolizumab improved PFS in platinum-ineligible urothelial carcinoma [Doc 1]."
+        )
+        gen = ClinicalGenerator(llm_client=llm)
+
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=self._WITHDRAWAL_ENTRIES,
+        ):
+            result = gen.generate("Efficacy of atezolizumab in UC?", self._chunks())
+
+        assert "⚠️" in result.answer
+        assert "Regulatory note" in result.answer
+        assert "Atezolizumab EMA approval" in result.answer
+        # Original answer body must still be present
+        assert "Atezolizumab improved PFS" in result.answer
+
+    def test_warning_not_appended_when_indication_absent(self):
+        from unittest.mock import patch
+
+        # Atezolizumab mentioned for NSCLC — no bladder/urothelial context
+        llm = _mock_llm("Atezolizumab showed activity in lung cancer [Doc 1].")
+        gen = ClinicalGenerator(llm_client=llm)
+
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=self._WITHDRAWAL_ENTRIES,
+        ):
+            result = gen.generate("Atezolizumab in NSCLC?", self._chunks())
+
+        assert "⚠️" not in result.answer
+
+    def test_warning_not_appended_for_unrelated_drug(self):
+        from unittest.mock import patch
+
+        llm = _mock_llm("Enzalutamide improved OS in mCRPC patients [Doc 1].")
+        gen = ClinicalGenerator(llm_client=llm)
+
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=self._WITHDRAWAL_ENTRIES,
+        ):
+            result = gen.generate("Enzalutamide efficacy?", self._chunks())
+
+        assert "⚠️" not in result.answer
+
+    def test_warning_appended_on_fallback_path(self):
+        # REFUSED gate (score=0.0) triggers LLM fallback — warning should still fire
+        from unittest.mock import patch
+
+        llm = _mock_llm(
+            "Atezolizumab is used in urothelial carcinoma treatment."
+        )
+        chunks = [_ranked_chunk(f"c{i}", 0.0, pmcid=str(i + 1)) for i in range(3)]
+
+        gen = ClinicalGenerator(llm_client=llm)
+
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=self._WITHDRAWAL_ENTRIES,
+        ):
+            result = gen.generate("Atezolizumab options?", chunks)
+
+        assert "⚠️" in result.answer
+
+    def test_citations_unaffected_by_warning(self):
+        # Warning appended after citations are computed — citations list must be correct
+        from unittest.mock import patch
+
+        llm = _mock_llm(
+            "Atezolizumab showed benefit in urothelial carcinoma [Doc 1] and [Doc 2]."
+        )
+        gen = ClinicalGenerator(llm_client=llm)
+
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=self._WITHDRAWAL_ENTRIES,
+        ):
+            result = gen.generate("Atezolizumab UC evidence?", self._chunks())
+
+        assert 1 in result.citations
+        assert 2 in result.citations
+        assert "⚠️" in result.answer
