@@ -136,8 +136,21 @@ class QdrantStore:
         self._client = client
         self._collection = collection_name
         self.ensure_collection()
+        # Detect whether the live collection uses named vectors ("dense") or
+        # a single default vector. Production was ingested before named-vector
+        # schema, so using=DENSE_VECTOR raises 400 Bad Request there.
+        self._has_named_vectors = self._detect_named_vectors()
 
     # ── Collection management ─────────────────────────────────────────────
+
+    def _detect_named_vectors(self) -> bool:
+        """Return True if the collection has a named 'dense' vector, False if default."""
+        try:
+            info = self._client.get_collection(self._collection)
+            vectors = info.config.params.vectors
+            return isinstance(vectors, dict) and DENSE_VECTOR in vectors
+        except Exception:
+            return True  # new collections created by ensure_collection use named vectors
 
     def ensure_collection(self) -> None:
         """Create collection + payload indexes if they do not already exist."""
@@ -204,10 +217,11 @@ class QdrantStore:
         filters: dict | None = None,
     ) -> list[ScoredChunk]:
         """ANN search using the dense cosine index."""
+        kwargs = {"using": DENSE_VECTOR} if self._has_named_vectors else {}
         results = self._client.query_points(
             collection_name=self._collection,
             query=query_embedding,
-            using=DENSE_VECTOR,
+            **kwargs,
             query_filter=_build_filter(filters),
             limit=top_k,
             with_payload=True,
