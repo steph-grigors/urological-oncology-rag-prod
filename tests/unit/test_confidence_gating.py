@@ -208,13 +208,12 @@ class TestClinicalGenerator:
         assert 1 in result.citations
         assert 2 in result.citations
 
-    def test_low_confidence_returns_refusal_without_llm_call(self):
+    def test_low_confidence_uses_fallback_llm(self):
+        # REFUSED gate calls LLM with fallback prompt and prepends FALLBACK_DISCLAIMER.
         from src.generation.generator import ClinicalGenerator
-        from src.generation.prompts import LOW_CONFIDENCE_REFUSAL
-        mock_llm = MagicMock()
-        # Chunks with score 0.0 → confidence < CONFIDENCE_REFUSE → REFUSED gate
+        from src.generation.prompts import FALLBACK_DISCLAIMER
         chunks = [_chunk(f"c{i}", 0.0) for i in range(3)]
-        gen = ClinicalGenerator(llm_client=mock_llm)
+        gen = ClinicalGenerator(llm_client=self._make_mock_llm("General oncology knowledge answer."))
         result = gen.generate("Efficacy?", chunks)
-        mock_llm.complete.assert_not_called()
-        assert result.answer == LOW_CONFIDENCE_REFUSAL
+        gen._llm.complete.assert_called_once()
+        assert FALLBACK_DISCLAIMER.strip() in result.answer
