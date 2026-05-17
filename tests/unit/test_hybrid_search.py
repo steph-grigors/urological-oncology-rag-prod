@@ -249,12 +249,18 @@ class TestBM25Search:
         assert bm25.size == len(self._CORPUS)
 
     def test_build_replaces_index(self):
+        # Use 3-doc corpus so Robertson IDF is positive (log(2.5/1.5) > 0).
+        # A 1-doc corpus yields IDF = log(0.5/1.5) < 0, clamped to 0 — no hits.
         bm25 = self._bm25()
-        new_corpus = [_chunk("only_one", text="new document about sunitinib")]
+        new_corpus = [
+            _chunk("target", text="nivolumab checkpoint inhibitor immunotherapy"),
+            _chunk("other_a", text="enzalutamide prostate androgen receptor"),
+            _chunk("other_b", text="pembrolizumab bladder urothelial carcinoma"),
+        ]
         bm25.build(new_corpus)
-        assert bm25.size == 1
-        results = bm25.search("sunitinib", top_k=5)
-        assert results[0].chunk_id == "only_one"
+        assert bm25.size == 3
+        results = bm25.search("nivolumab", top_k=5)
+        assert results[0].chunk_id == "target"
 
     def test_empty_corpus_returns_empty(self):
         bm25 = BM25Search([])

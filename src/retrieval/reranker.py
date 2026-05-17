@@ -15,6 +15,14 @@ relevant chunk from an older or lower-evidence source.
 Recency tiers (years before current year → weight):
     0–2  → 1.00   3–5  → 0.90   6–10 → 0.80   11–15 → 0.70   >15 → 0.60
 
+RCT landmark boost:
+    Chunks with study_design = "rct" published within the last 2 years receive
+    an additional 1.10× multiplier on top of their recency weight, surfacing
+    recent landmark trials (e.g. EV-302/NIAGARA NEJM 2024) above older protocols
+    for the same indication. The cap of 1.10× prevents this from overriding a
+    directly relevant older RCT (LATITUDE 2017, VISION 2021 remain dominant when
+    the Cohere relevance score strongly favours them).
+
 Graceful degradation:
     If COHERE_API_KEY is empty or the API call fails, chunks are returned
     as RankedChunk objects with relevance_score = original RRF score.
@@ -106,7 +114,8 @@ class CohereReranker:
                 rel = float(result.relevance_score)
                 design_weight = _design_weight(chunk)
                 recency_weight = _recency_weight(chunk)
-                final_score = rel ** 0.70 * design_weight ** 0.15 * recency_weight ** 0.15
+                rct_boost = _rct_landmark_boost(chunk)
+                final_score = rel ** 0.70 * design_weight ** 0.15 * (recency_weight * rct_boost) ** 0.15
                 ranked.append(RankedChunk(
                     chunk_id=chunk.chunk_id,
                     text=chunk.text,
@@ -147,6 +156,26 @@ def _recency_weight(chunk: ScoredChunk) -> float:
     if age <= 15:
         return 0.70
     return 0.60
+
+
+def _rct_landmark_boost(chunk: ScoredChunk) -> float:
+    """Return 1.10 for RCTs published within 2 years, 1.0 otherwise.
+
+    Surfaces recent landmark trials (e.g. EV-302 NEJM 2024) above older
+    protocols for the same indication without overriding the Cohere relevance
+    score for older RCTs that score highly on direct relevance.
+    """
+    design = chunk.metadata.get("study_design", "unknown")
+    if design != "rct":
+        return 1.0
+    year = chunk.metadata.get("year")
+    if not year:
+        return 1.0
+    try:
+        age = datetime.datetime.now().year - int(year)
+    except (ValueError, TypeError):
+        return 1.0
+    return 1.10 if age <= 2 else 1.0
 
 
 def _passthrough(chunks: list[ScoredChunk], top_n: int) -> list[RankedChunk]:

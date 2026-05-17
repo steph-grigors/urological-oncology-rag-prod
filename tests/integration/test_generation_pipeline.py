@@ -156,14 +156,18 @@ class TestProviders:
 # ── TestConfidenceGating ──────────────────────────────────────────────────────
 
 class TestConfidenceGating:
-    def test_refused_gate_returns_refusal_text(self):
-        # All zero scores → confidence < CONFIDENCE_REFUSE → REFUSED
+    def test_refused_gate_uses_fallback_disclaimer(self):
+        # All zero scores → confidence < CONFIDENCE_REFUSE → REFUSED gate.
+        # The generator does NOT return a hard-refusal string; instead it calls
+        # the LLM with a fallback prompt (parametric knowledge) and prepends
+        # FALLBACK_DISCLAIMER to make the knowledge-base miss explicit.
+        from src.generation.prompts import FALLBACK_DISCLAIMER
         chunks = [_ranked_chunk(f"c{i}", 0.0, pmcid=str(i + 1)) for i in range(3)]
-        mock_llm = MagicMock()
+        mock_llm = _mock_llm("General oncology knowledge answer.")
         gen = ClinicalGenerator(llm_client=mock_llm)
         result = gen.generate("Anything?", chunks)
-        assert result.answer == LOW_CONFIDENCE_REFUSAL
-        mock_llm.complete.assert_not_called()
+        assert FALLBACK_DISCLAIMER.strip() in result.answer
+        mock_llm.complete.assert_called_once()
 
     def test_hedged_gate_prefix(self):
         # Moderate scores → HEDGED gate → HEDGED_ANSWER_PREFIX in the prompt
