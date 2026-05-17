@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from config.constants import MAX_ANSWER_TOKENS
 from src.generation.confidence import ConfidenceGate, compute_confidence, gate
+from src.generation.post_process import apply_regulatory_warnings
 from src.generation.prompts import (
     FALLBACK_DISCLAIMER,
     FALLBACK_USER_TEMPLATE,
@@ -79,7 +80,7 @@ class ClinicalGenerator:
             )
             latency_ms = (time.monotonic() - start) * 1000
             return GenerationResult(
-                answer=FALLBACK_DISCLAIMER + response.content,
+                answer=apply_regulatory_warnings(FALLBACK_DISCLAIMER + response.content),
                 citations=[],
                 evidence_quality="insufficient",
                 model_used=response.model,
@@ -112,6 +113,8 @@ class ClinicalGenerator:
         citations = sorted(
             {int(m) for m in _CITATION_RE.findall(answer)} - set(hallucinated)
         )
+
+        answer = apply_regulatory_warnings(answer)
 
         return GenerationResult(
             answer=answer,
