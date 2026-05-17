@@ -1,0 +1,39 @@
+{
+  "last_updated": "2026-05-17",
+  "description": "Biomarker eligibility requirements for precision oncology treatments. Used by the /treatment-card endpoint to flag missing biomarker context in patient cases.",
+  "entries": [
+    {
+      "drug_patterns": ["lu-177", "lutetium", "lutetium-177", "177lu", "pluvicto", "psma-617"],
+      "required_biomarker": "PSMA-PET positivity",
+      "biomarker_keywords": [
+        "psma-pet", "psma pet", "psma positif", "psma positive", "psma+",
+        "captage psma", "scintigraphie psma", "psma scan", "psma avid"
+      ],
+      "warning_fr": "Lu-177-PSMA-617 (Pluvicto) requiert une positivité PSMA-PET confirmée (SUVmax au-dessus du seuil hépatique). Le statut PSMA-PET du patient n'est pas précisé dans l'anamnèse — vérifier le résultat de la scintigraphie PSMA avant de recommander ce traitement.",
+      "jurisdiction": "biomarker"
+    },
+    {
+      "drug_patterns": [
+        "olaparib", "lynparza", "rucaparib", "rubraca",
+        "niraparib", "zejula", "talazoparib", "talzenna", "inhibiteur parp", "iparp"
+      ],
+      "required_biomarker": "HRR/BRCA alteration",
+      "biomarker_keywords": [
+        "brca", "hrr", "alterat", "mutat", "homologous recombination",
+        "brca1", "brca2", "hrr+", "cdkn2a", "atm", "rad51", "palb2"
+      ],
+      "warning_fr": "Les inhibiteurs de PARP requièrent une altération HRR/BRCA confirmée (tissu tumoral ou ADN tumoral circulant). Le statut HRR/BRCA du patient n'est pas précisé dans l'anamnèse — vérifier le résultat du séquençage moléculaire avant de recommander ce traitement.",
+      "jurisdiction": "biomarker"
+    },
+    {
+      "drug_patterns": ["pembrolizumab", "keytruda"],
+      "required_biomarker": "CPS ≥ 10",
+      "biomarker_keywords": [
+        "cps", "pd-l1", "combined positive score", "expression pd-l1",
+        "cps ≥", "cps>=", "cps >", "dako 22c3", "22c3"
+      ],
+      "warning_fr": "Pembrolizumab en carcinome urothélial post-platine requiert un score CPS ≥ 10 (expression PD-L1, test DAKO 22C3). Le statut CPS du patient n'est pas précisé dans l'anamnèse — vérifier le résultat de l'expression PD-L1 avant de recommander ce traitement.",
+      "jurisdiction": "biomarker"
+    }
+  ]
+}

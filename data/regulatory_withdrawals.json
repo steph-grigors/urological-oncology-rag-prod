@@ -20,6 +20,7 @@
       "status": "withdrawn",
       "date": "2021-09",
       "warning": "Atezolizumab (Tecentriq) — EMA approval for first-line platinum-ineligible urothelial carcinoma was voluntarily withdrawn in September 2021 following the IMVIGOR110 confirmatory trial (no overall survival benefit). Verify current regulatory status before recommending.",
+      "warning_fr": "Atézolizumab (Tecentriq) — L'AMM de l'EMA pour le carcinome urothélial platine-inéligible en première ligne a été volontairement retirée en septembre 2021 suite à l'essai confirmatoire IMVIGOR110 (absence de bénéfice en survie globale). Vérifier le statut réglementaire actuel avant toute recommandation.",
       "source": "manual"
     },
     {
@@ -39,6 +40,7 @@
       "status": "withdrawn",
       "date": "2021-09",
       "warning": "Atezolizumab (Tecentriq) — FDA accelerated approval for platinum-ineligible urothelial carcinoma was voluntarily withdrawn in September 2021 (IMVIGOR010 results). Verify current regulatory status before recommending.",
+      "warning_fr": "Atézolizumab (Tecentriq) — L'approbation accélérée FDA pour le carcinome urothélial platine-inéligible a été volontairement retirée en septembre 2021 (résultats IMVIGOR010). Vérifier le statut réglementaire actuel avant toute recommandation.",
       "source": "manual"
     },
     {
@@ -57,6 +59,7 @@
       "status": "withdrawn",
       "date": "2022-10",
       "warning": "Rucaparib (Rubraca) — FDA approval for BRCA-mutated metastatic CRPC was voluntarily withdrawn in October 2022 (sponsor request). Verify current regulatory status before recommending.",
+      "warning_fr": "Rucaparib (Rubraca) — L'approbation FDA pour le CPRC métastatique avec mutation BRCA a été volontairement retirée en octobre 2022 (demande du sponsor). Vérifier le statut réglementaire actuel avant toute recommandation.",
       "source": "manual"
     }
   ]
