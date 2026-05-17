@@ -55,6 +55,32 @@ def _cached_embed(query: str, model: str, client_id: int) -> tuple[float, ...]:
     raise NotImplementedError  # replaced at runtime by RAGRetriever._embed
 
 
+# ── Diversity cap helper ──────────────────────────────────────────────────────
+
+def _apply_diversity_cap(
+    chunks: list[ScoredChunk],
+    cap: int,
+    capped_designs: frozenset[str],
+) -> list[ScoredChunk]:
+    """
+    Return `chunks` with at most `cap` entries whose study_design is in
+    `capped_designs`, preserving RRF rank order.
+
+    Chunks beyond the cap are dropped entirely rather than demoted, so the
+    reranker receives a smaller but higher-precision candidate set.
+    """
+    result: list[ScoredChunk] = []
+    capped_count = 0
+    for chunk in chunks:
+        design = chunk.metadata.get("study_design", "unknown")
+        if design in capped_designs:
+            if capped_count >= cap:
+                continue
+            capped_count += 1
+        result.append(chunk)
+    return result
+
+
 # ── RAGRetriever ──────────────────────────────────────────────────────────────
 
 class RAGRetriever:
@@ -64,14 +90,21 @@ class RAGRetriever:
 
     Parameters
     ----------
-    store           : QdrantStore connected to the production collection
-    bm25            : pre-built BM25Search index
-    reranker        : CohereReranker (pass api_key="" for passthrough mode)
-    openai_client   : OpenAI client for query embedding
-    embedding_model : must match the model used at index time
-    top_k_retrieval : candidates to fetch from each retriever
-    top_k_rerank    : final chunks returned after reranking
+    store                    : QdrantStore connected to the production collection
+    bm25                     : pre-built BM25Search index
+    reranker                 : CohereReranker (pass api_key="" for passthrough mode)
+    openai_client            : OpenAI client for query embedding
+    embedding_model          : must match the model used at index time
+    top_k_retrieval          : candidates to fetch from each retriever
+    top_k_rerank             : final chunks returned after reranking
+    source_type_diversity_cap: max chunks from review/guideline study designs that
+                               enter the reranker. Forces primary trial evidence into
+                               the top-N pool. Set to None to disable.
     """
+
+    # Ingestion short-codes that represent narrative reviews and guidelines.
+    # RCTs, cohorts, and meta-analyses are not capped — only review/unknown.
+    _CAPPED_DESIGNS: frozenset[str] = frozenset({"review", "unknown"})
 
     def __init__(
         self,
@@ -82,6 +115,7 @@ class RAGRetriever:
         embedding_model: str = "text-embedding-3-small",
         top_k_retrieval: int = 20,
         top_k_rerank: int = 5,
+        source_type_diversity_cap: Optional[int] = 2,
     ) -> None:
         self._store = store
         self._bm25 = bm25
@@ -90,6 +124,7 @@ class RAGRetriever:
         self._embedding_model = embedding_model
         self._top_k_retrieval = top_k_retrieval
         self._top_k_rerank = top_k_rerank
+        self._diversity_cap = source_type_diversity_cap
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -133,6 +168,12 @@ class RAGRetriever:
 
         # ── Step 4: RRF fusion ────────────────────────────────────────────
         fused = rrf_fusion(dense_results, bm25_results, top_k=k_ret)
+
+        # ── Step 4b: source diversity cap ────────────────────────────────
+        # Prevent review/guideline chunks from occupying all reranker slots,
+        # ensuring primary RCT evidence reaches the generation context.
+        if self._diversity_cap is not None:
+            fused = _apply_diversity_cap(fused, self._diversity_cap, self._CAPPED_DESIGNS)
 
         # ── Step 5: rerank ────────────────────────────────────────────────
         t3 = time.perf_counter()

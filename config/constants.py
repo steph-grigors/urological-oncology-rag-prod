@@ -48,10 +48,10 @@ STUDY_DESIGN_HIERARCHY: Final[list[str]] = [
 ]
 
 STUDY_DESIGN_WEIGHTS: Final[dict[str, float]] = {
+    # Verbose names (legacy — kept for any manually-tagged chunks)
     "systematic review": 1.0,
     "meta-analysis": 1.0,
     "randomised controlled trial": 0.9,
-    "rct": 0.9,
     "randomized controlled trial": 0.9,
     "prospective cohort": 0.75,
     "prospective study": 0.75,
@@ -64,6 +64,14 @@ STUDY_DESIGN_WEIGHTS: Final[dict[str, float]] = {
     "expert opinion": 0.15,
     "editorial": 0.1,
     "letter": 0.1,
+    # Short codes emitted by extract_metadata.py — these were previously falling
+    # through to the "unknown" default (0.5), silently under-weighting meta-analyses
+    # and over-weighting cohort studies relative to their intended evidence grade.
+    "rct": 0.9,
+    "meta_analysis": 1.0,
+    "cohort": 0.6,
+    "review": 0.3,
+    "unknown": 0.5,
 }
 
 # ── Section priority for retrieval ───────────────────────────────────────────
