@@ -79,8 +79,8 @@ WEB_SOURCES = [
     {
         "name": "FDA oncology safety notifications",
         "url": (
-            "https://www.fda.gov/patients/"
-            "hematologyoncology-cancer-approvals-safety-notifications"
+            "https://www.fda.gov/drugs/resources-information-approved-drugs/"
+            "oncology-cancerhematologic-malignancies-approval-notifications"
         ),
         "jurisdiction_hint": "FDA",
     },
@@ -324,7 +324,7 @@ def extract_entries_with_claude(
             model="claude-haiku-4-5-20251001",
             max_tokens=2000,
             tools=[tool],
-            tool_choice={"type": "required"},
+            tool_choice={"type": "any"},
             messages=[{"role": "user", "content": prompt}],
         )
         for block in response.content:

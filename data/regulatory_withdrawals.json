@@ -1,14 +1,20 @@
 {
-  "last_updated": "2026-05-17",
-  "source": "initial (manual seed) — run scripts/update_regulatory_db.py to refresh",
+  "last_updated": "2026-05-17T16:11:42Z",
+  "source": "automated (openFDA API + Claude-assisted web extraction)",
   "entries": [
     {
       "drug": "atezolizumab",
-      "aliases": ["tecentriq"],
+      "aliases": [
+        "tecentriq"
+      ],
       "indication": "first-line platinum-ineligible urothelial carcinoma",
       "indication_keywords": [
-        "urothelial", "bladder", "platinum-ineligible", "cisplatin-ineligible",
-        "platine", "urothelial carcinoma"
+        "urothelial",
+        "bladder",
+        "platinum-ineligible",
+        "cisplatin-ineligible",
+        "platine",
+        "urothelial carcinoma"
       ],
       "jurisdiction": "EMA",
       "status": "withdrawn",
@@ -18,10 +24,15 @@
     },
     {
       "drug": "atezolizumab",
-      "aliases": ["tecentriq"],
+      "aliases": [
+        "tecentriq"
+      ],
       "indication": "first-line platinum-ineligible urothelial carcinoma",
       "indication_keywords": [
-        "urothelial", "bladder", "platinum-ineligible", "cisplatin-ineligible",
+        "urothelial",
+        "bladder",
+        "platinum-ineligible",
+        "cisplatin-ineligible",
         "urothelial carcinoma"
       ],
       "jurisdiction": "FDA",
@@ -32,10 +43,15 @@
     },
     {
       "drug": "rucaparib",
-      "aliases": ["rubraca"],
+      "aliases": [
+        "rubraca"
+      ],
       "indication": "BRCA-mutated metastatic CRPC",
       "indication_keywords": [
-        "prostate", "crpc", "castration-resistant", "mcrpc"
+        "prostate",
+        "crpc",
+        "castration-resistant",
+        "mcrpc"
       ],
       "jurisdiction": "FDA",
       "status": "withdrawn",
