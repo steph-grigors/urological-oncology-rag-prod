@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     embedding_model: str = Field(
         "text-embedding-3-small", alias="EMBEDDING_MODEL"
     )
-    generation_model: str = Field("claude-sonnet-3-7", alias="GENERATION_MODEL")
+    generation_model: str = Field("claude-sonnet-4-6", alias="GENERATION_MODEL")
     generation_provider: Literal["anthropic", "openai"] = Field(
         "anthropic", alias="GENERATION_PROVIDER"
     )

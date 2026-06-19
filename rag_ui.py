@@ -14,6 +14,17 @@ import plotly.graph_objects as go
 _API_BASE = os.environ.get("API_BACKEND_URL", "http://localhost:8000").rstrip("/")
 _API_KEY  = os.environ.get("API_KEY", "")
 
+
+@st.cache_resource
+def _get_session() -> requests.Session:
+    """One pooled, keep-alive HTTP session per Streamlit process.
+
+    A plain module-level `requests.Session()` would be recreated on every
+    rerun (Streamlit re-executes the whole script top to bottom on each
+    interaction) — st.cache_resource is what actually persists it.
+    """
+    return requests.Session()
+
 _QUALITY_BADGES: dict[str, tuple[str, str, str]] = {
     "high":         ("#1e7e34", "🟢 High Evidence",
                      "Multiple consistent, relevant sources were retrieved. "
@@ -48,6 +59,9 @@ _CANCER_TYPES = [
     "Penile Cancer",
     "Adrenal Cancer",
 ]
+
+# /treatment-card requires a single specific cancer_type — "All Topics" isn't valid.
+_CARD_CANCER_TYPES = _CANCER_TYPES[1:]
 
 st.set_page_config(
     page_title="Urological Oncology RAG",
@@ -173,8 +187,13 @@ if "latency_sum"        not in st.session_state: st.session_state.latency_sum   
 if "top_k"              not in st.session_state: st.session_state.top_k              = 5
 if "show_context"       not in st.session_state: st.session_state.show_context       = False
 if "custom_system_prompt" not in st.session_state: st.session_state.custom_system_prompt = ""
+if "tc_custom_system_prompt" not in st.session_state: st.session_state.tc_custom_system_prompt = ""
 if "user_api_key"       not in st.session_state: st.session_state.user_api_key       = None
 if "chat_mode"          not in st.session_state: st.session_state.chat_mode          = False
+if "endpoint_mode"      not in st.session_state: st.session_state.endpoint_mode      = "query"
+if "tc_patient_id"      not in st.session_state: st.session_state.tc_patient_id      = str(uuid.uuid4())[:8]
+if "tc_current_response" not in st.session_state: st.session_state.tc_current_response = None
+if "tc_input_method"    not in st.session_state: st.session_state.tc_input_method    = "structured"
 
 
 # ── Backend helpers ────────────────────────────────────────────────────────────
@@ -193,7 +212,7 @@ def _query_backend(
         payload["conversation_id"] = conversation_id
     if system_prompt:
         payload["system_prompt"] = system_prompt
-    resp = requests.post(f"{_API_BASE}/query", json=payload, headers=headers, timeout=180)
+    resp = _get_session().post(f"{_API_BASE}/query", json=payload, headers=headers, timeout=180)
     if not resp.ok:
         try:
             detail = resp.json()
@@ -201,6 +220,58 @@ def _query_backend(
             detail = resp.text
         raise requests.HTTPError(f"{resp.status_code} {resp.reason}: {detail}", response=resp)
     return resp.json()
+
+
+def _treatment_card_backend(
+    patient_id: str,
+    cancer_type: str,
+    age_range: str,
+    clinical_history: str,
+    comorbidities: dict,
+    top_k: int,
+    system_prompt: str | None = None,
+) -> dict:
+    """Call /treatment-card. Always requests English output with citations kept
+    in the drug/sources fields (so they can be rendered as chips against
+    sources_detail) and the parametric-fallback disclosure enabled — this UI is
+    the only caller that opts into either, onco-review-app's notebook does not."""
+    api_key = st.session_state.get("user_api_key") or _API_KEY
+    headers = {"X-API-Key": api_key} if api_key else {}
+    payload: dict = {
+        "patient_id": patient_id,
+        "cancer_type": cancer_type,
+        "age_range": age_range,
+        "clinical_history": clinical_history,
+        "comorbidities": comorbidities,
+        "top_k": top_k,
+        "language": "en",
+        "keep_citations": True,
+        "disclose_fallback": True,
+    }
+    if system_prompt:
+        payload["system_prompt"] = system_prompt
+    resp = _get_session().post(f"{_API_BASE}/treatment-card", json=payload, headers=headers, timeout=180)
+    if not resp.ok:
+        try:
+            detail = resp.json()
+        except Exception:
+            detail = resp.text
+        raise requests.HTTPError(f"{resp.status_code} {resp.reason}: {detail}", response=resp)
+    return resp.json()
+
+
+def _parse_comorbidities(text: str) -> dict:
+    """Parse a 'Name: value' per-line text block into a dict."""
+    result: dict = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        key, value = key.strip(), value.strip()
+        if key:
+            result[key] = value or "yes"
+    return result
 
 
 def _design_badge(design: str) -> str:
@@ -342,9 +413,89 @@ def display_sources(sources: list, show_context: bool) -> None:
                 st.caption(preview)
 
 
+# ── Treatment card ───────────────────────────────────────────────────────────────
+
+def display_treatment_card(card: dict, show_context: bool) -> None:
+    retrieval_meta = card.get("retrieval_metadata", {}) or {}
+    sources_detail = retrieval_meta.get("sources_detail", []) or []
+
+    if retrieval_meta.get("grounded") is False:
+        st.warning(
+            "⚠ No relevant literature was retrieved for this case. The "
+            "recommendations below are based on the model's general clinical "
+            "knowledge, not the indexed evidence base — verify before clinical use."
+        )
+
+    st.markdown(f"### 🧾 Treatment Card — Patient {card.get('patient_id', '')}")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Confidence", card.get("confidence", "—"))
+    with c2:
+        st.metric("Guideline", card.get("guideline", "—"))
+    with c3:
+        st.metric("Treatment confidence", card.get("treatment_confidence", "—"))
+
+    if card.get("stage"):
+        st.caption(f"**Stage:** {card['stage']}")
+    if card.get("comorbidities_impact"):
+        st.caption(f"**Comorbidities impact:** {card['comorbidities_impact']}")
+
+    st.divider()
+    st.markdown("#### 💊 Recommended treatments")
+    for t in card.get("treatment", []):
+        drug_html = _format_citations(t.get("drug", ""), sources_detail)
+        level = t.get("level", "")
+        intent = t.get("intent", "")
+        with st.container(border=True):
+            st.markdown(f"<div class='answer-body'>{drug_html}</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<span class='design-badge' style='background:#1966D3;'>{intent}</span> "
+                f"<span class='design-badge' style='background:#6b7280;margin-left:0.4rem;'>"
+                f"Level {level}</span>",
+                unsafe_allow_html=True,
+            )
+            for w in t.get("warnings", []):
+                st.error(f"**{w.get('type', '').title()} warning** — {w.get('message', '')}")
+
+    st.divider()
+    if sources_detail:
+        display_sources(sources_detail, show_context)
+    elif card.get("sources"):
+        st.markdown(f"### 📚 Sources ({len(card['sources'])})")
+        for s in card["sources"]:
+            st.caption(s)
+
+
 # ── Query tab ──────────────────────────────────────────────────────────────────
 
 def display_query_tab() -> None:
+    st.markdown("<div class='panel-heading'>🔀 Mode</div>", unsafe_allow_html=True)
+    mode_label = st.radio(
+        "Mode",
+        ["💬 Clinical Query", "🧾 Treatment Card"],
+        index=0 if st.session_state.endpoint_mode == "query" else 1,
+        horizontal=True,
+        label_visibility="collapsed",
+        help=(
+            "Clinical Query: free-text question answered with inline [Doc N] citations. "
+            "Treatment Card: structured per-patient recommendation (stage, treatment "
+            "options, evidence level) generated via the dedicated /treatment-card endpoint — "
+            "prompts, citation handling, and fallback disclosure all switch automatically."
+        ),
+    )
+    new_mode = "query" if mode_label.endswith("Clinical Query") else "treatment_card"
+    if new_mode != st.session_state.endpoint_mode:
+        st.session_state.endpoint_mode = new_mode
+        st.rerun()
+
+    if st.session_state.endpoint_mode == "query":
+        _display_clinical_query_mode()
+    else:
+        _display_treatment_card_mode()
+
+
+def _display_clinical_query_mode() -> None:
     col_main, col_settings = st.columns([3, 1], gap="large")
 
     # ── Right column: settings (always visible) ────────────────────────────
@@ -529,6 +680,141 @@ def display_query_tab() -> None:
 
             st.divider()
             display_sources(resp["sources"], st.session_state.show_context)
+
+
+def _display_treatment_card_mode() -> None:
+    col_main, col_settings = st.columns([3, 1], gap="large")
+
+    # ── Right column: settings ──────────────────────────────────────────────
+    with col_settings:
+        st.markdown("<div class='panel-heading'>⚙️ Card Settings</div>", unsafe_allow_html=True)
+
+        cancer_type_label = st.selectbox(
+            "Cancer type",
+            _CARD_CANCER_TYPES,
+            index=0,
+            help="Treatment cards require one specific cancer type — unlike Clinical Query, there is no 'All Topics' option.",
+        )
+        st.session_state.top_k = st.slider(
+            "Sources retrieved",
+            min_value=1,
+            max_value=10,
+            value=st.session_state.top_k,
+            help="Number of retrieved source excerpts used to build the card.",
+        )
+        st.session_state.show_context = st.checkbox(
+            "Show full source text",
+            value=st.session_state.show_context,
+        )
+
+        if st.button("↺ New patient", use_container_width=True):
+            st.session_state.tc_patient_id = str(uuid.uuid4())[:8]
+            st.session_state.tc_current_response = None
+            st.rerun()
+
+    # ── Left column: patient form + results ─────────────────────────────────
+    with col_main:
+        st.markdown(
+            "<div style='font-size:1.1rem;font-weight:600;margin-bottom:0.6rem;'>"
+            "Generate a structured treatment card from a clinical case."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        p1, p2 = st.columns([1, 1])
+        with p1:
+            patient_id = st.text_input("Patient ID", value=st.session_state.tc_patient_id)
+        with p2:
+            age_range = st.text_input("Age range (optional)", placeholder="e.g. 70-79")
+
+        input_method_label = st.radio(
+            "Input method",
+            ["📋 Structured form", "📝 Free text"],
+            index=0 if st.session_state.tc_input_method == "structured" else 1,
+            horizontal=True,
+            help=(
+                "Structured form: separate fields for clinical history and comorbidities. "
+                "Free text: paste the whole case as one block (history + comorbidities together) — "
+                "useful when copying a case from elsewhere."
+            ),
+        )
+        st.session_state.tc_input_method = (
+            "structured" if input_method_label.endswith("Structured form") else "free_text"
+        )
+
+        if st.session_state.tc_input_method == "structured":
+            clinical_history = st.text_area(
+                "Clinical history",
+                height=130,
+                placeholder=(
+                    "e.g. Metastatic hormone-sensitive prostate cancer, cT3b N1 M1b, "
+                    "ISUP grade 4, PSA 42 ng/mL. No prior systemic treatment."
+                ),
+            )
+            comorbidities_text = st.text_area(
+                "Comorbidities (optional — one per line, 'Name: value')",
+                height=80,
+                placeholder="Chronic kidney disease: stage 3\nDiabetes: type 2",
+            )
+        else:
+            clinical_history = st.text_area(
+                "Clinical case (free text)",
+                height=200,
+                placeholder=(
+                    "e.g. Metastatic hormone-sensitive prostate cancer, cT3b N1 M1b, "
+                    "ISUP grade 4, PSA 42 ng/mL. No prior systemic treatment.\n\n"
+                    "Comorbidities: chronic kidney disease stage 3, type 2 diabetes."
+                ),
+            )
+            comorbidities_text = ""  # folded into clinical_history above
+
+        b1, b2, _ = st.columns([2, 2, 6])
+        with b1:
+            generate_button = st.button("🧾 Generate Card", type="primary", use_container_width=True)
+        with b2:
+            clear_button = st.button("✕ Clear", use_container_width=True, key="tc_clear")
+
+        if clear_button:
+            st.session_state.tc_current_response = None
+            st.rerun()
+
+        with st.expander("📝 Custom Instructions (System prompt)", expanded=False):
+            st.session_state.tc_custom_system_prompt = st.text_area(
+                "Override system prompt",
+                value=st.session_state.tc_custom_system_prompt,
+                height=110,
+                placeholder="Optional. Overrides the default card-generation instructions entirely.",
+                label_visibility="collapsed",
+                key="tc_system_prompt",
+            )
+
+        if generate_button and clinical_history.strip() and len(clinical_history.strip()) >= 10:
+            cancer_type = cancer_type_label.lower().replace(" cancer", "").strip()
+            with st.spinner("Generating treatment card…"):
+                try:
+                    card = _treatment_card_backend(
+                        patient_id=patient_id or st.session_state.tc_patient_id,
+                        cancer_type=cancer_type,
+                        age_range=age_range,
+                        clinical_history=clinical_history.strip(),
+                        comorbidities=_parse_comorbidities(comorbidities_text),
+                        top_k=st.session_state.top_k,
+                        system_prompt=st.session_state.tc_custom_system_prompt or None,
+                    )
+                    st.session_state.tc_current_response = card
+                except Exception as e:
+                    import traceback
+                    short = str(e).split(":")[0] if ":" in str(e) else str(e)
+                    st.error(f"Card generation failed — {short}")
+                    with st.expander("Debug info", expanded=False):
+                        st.code(str(e))
+                        st.code(traceback.format_exc())
+        elif generate_button:
+            st.warning("Please enter a clinical history (at least 10 characters).")
+
+        if st.session_state.tc_current_response:
+            st.divider()
+            display_treatment_card(st.session_state.tc_current_response, st.session_state.show_context)
 
 
 # ── System Performance tab ─────────────────────────────────────────────────────

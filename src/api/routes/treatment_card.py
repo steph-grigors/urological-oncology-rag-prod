@@ -1,22 +1,26 @@
 """
-POST /treatment-card — structured French treatment card generation endpoint.
+POST /treatment-card — structured treatment card generation endpoint.
+
+Default output language is French (matches the original, long-standing
+behaviour relied on by existing callers); pass language="en" for English.
 """
 
 from __future__ import annotations
 
 import time
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from src.api.middleware.auth import require_api_key
 from src.observability.logging import get_logger, query_id_var
-from config.constants import CONFIDENCE_REFUSE
+from config.constants import CONFIDENCE_REFUSE, SUPPORTED_TOPICS, TOPIC_ALIASES
 
 if TYPE_CHECKING:
     from src.generation.card_generator import CardGenerator
+    from src.observability.audit import AuditLogger
     from src.retrieval.retriever import RAGRetriever
 
 router = APIRouter(tags=["treatment-card"])
@@ -34,11 +38,49 @@ class TreatmentCardRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=10)
     system_prompt: str | None = Field(default=None, max_length=10000)
     conversation_id: str | None = None
+    language: Literal["fr", "en"] = Field(
+        default="fr",
+        description=(
+            "Language for server-injected text (prompt scaffolding, fallback "
+            "values, warning text). Does not override an explicit system_prompt's "
+            "own instructions. Default 'fr' preserves pre-existing behaviour."
+        ),
+    )
+    keep_citations: bool = Field(
+        default=False,
+        description=(
+            "If true, treatment[].drug may carry a range-validated [Doc N] tag, "
+            "and `sources` is regenerated from real chunk metadata for every "
+            "[Doc N] the model referenced. Default false strips all [Doc N] tags "
+            "everywhere, matching pre-existing behaviour."
+        ),
+    )
+    disclose_fallback: bool = Field(
+        default=False,
+        description=(
+            "If true, replaces `sources`/`sources_detail` with an explicit "
+            "disclosure and sets retrieval_metadata['grounded']=false when no "
+            "chunks were retrieved. Default false leaves retrieval_metadata's "
+            "shape unchanged, matching pre-existing behaviour."
+        ),
+    )
 
     @field_validator("comorbidities", mode="before")
     @classmethod
     def coerce_none_dict(cls, v: Any) -> dict:
         return v or {}
+
+    @field_validator("cancer_type")
+    @classmethod
+    def normalise_cancer_type(cls, v: str) -> str:
+        normalised_v = v.strip().lower()
+        topic = TOPIC_ALIASES.get(normalised_v, normalised_v)
+        if topic not in SUPPORTED_TOPICS:
+            raise ValueError(
+                f"Unsupported cancer_type {v!r}. Must be one of {SUPPORTED_TOPICS} "
+                f"(or an alias: {sorted(TOPIC_ALIASES)})."
+            )
+        return topic
 
 
 class TreatmentWarningOut(BaseModel):
@@ -79,6 +121,10 @@ def get_card_generator(request: Request) -> "CardGenerator | None":
     return getattr(request.app.state, "card_generator", None)
 
 
+def get_audit_logger(request: Request) -> "AuditLogger | None":
+    return getattr(request.app.state, "audit_logger", None)
+
+
 # ── Route handler ─────────────────────────────────────────────────────────────
 
 @router.post("/treatment-card", response_model=TreatmentCardResponse)
@@ -87,6 +133,7 @@ async def treatment_card_endpoint(
     request: Request,
     retriever: "RAGRetriever | None" = Depends(get_retriever),
     card_generator: "CardGenerator | None" = Depends(get_card_generator),
+    audit_logger: "AuditLogger | None" = Depends(get_audit_logger),
     _api_key: str = Depends(require_api_key),
 ) -> Any:
     if retriever is None or card_generator is None:
@@ -141,12 +188,31 @@ async def treatment_card_endpoint(
             ranked_chunks=chunks_for_generation,
             confidence_score=retrieval_result.retrieval_confidence,
             system_prompt=body.system_prompt,
+            language=body.language,
+            keep_citations=body.keep_citations,
+            disclose_fallback=body.disclose_fallback,
         )
     except Exception as exc:
         logger.error("Card generation failed: %s", exc)
         raise HTTPException(status_code=503, detail="Generation service unavailable")
 
     total_ms = int((time.perf_counter() - t_total) * 1000)
+
+    # ── Audit log (fire-and-forget, never raise) ──────────────────────────
+    if audit_logger is not None:
+        try:
+            await audit_logger.log_treatment_card(
+                query_id=query_id,
+                patient_id=body.patient_id,
+                clinical_history=body.clinical_history,
+                card_result=card_result,
+                model=getattr(card_generator, "model", ""),
+                provider=getattr(card_generator, "provider", ""),
+                user_id=_api_key if _api_key not in ("", "dev") else None,
+                session_id=body.conversation_id,
+            )
+        except Exception as exc:
+            logger.warning("Audit log failed: %s", exc)
 
     return TreatmentCardResponse(
         patient_id=card_result.patient_id,

@@ -14,6 +14,8 @@ SUPPORTED_TOPICS: Final[list[str]] = [
     "bladder",
     "kidney",
     "testicular",
+    "penile",
+    "adrenal",
 ]
 
 TOPIC_ALIASES: Final[dict[str, str]] = {
@@ -23,6 +25,7 @@ TOPIC_ALIASES: Final[dict[str, str]] = {
     "nmibc": "bladder",
     "mibc": "bladder",
     "gct": "testicular",
+    "acc": "adrenal",
 }
 
 # ── Study design hierarchy (highest → lowest evidence weight) ────────────────
