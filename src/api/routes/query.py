@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
+from config.constants import SUPPORTED_TOPICS, TOPIC_ALIASES
 from src.api.middleware.auth import require_api_key
 from src.generation.confidence import gate
 from src.observability.logging import get_logger, query_id_var
@@ -44,6 +45,21 @@ class QueryRequest(BaseModel):
     @classmethod
     def coerce_none_list(cls, v: Any) -> list:
         return v or []
+
+    @field_validator("cancer_types")
+    @classmethod
+    def normalise_cancer_types(cls, v: list[str]) -> list[str]:
+        normalised: list[str] = []
+        for raw in v:
+            normalised_raw = raw.strip().lower()
+            topic = TOPIC_ALIASES.get(normalised_raw, normalised_raw)
+            if topic not in SUPPORTED_TOPICS:
+                raise ValueError(
+                    f"Unsupported cancer_type {raw!r}. Must be one of {SUPPORTED_TOPICS} "
+                    f"(or an alias: {sorted(TOPIC_ALIASES)})."
+                )
+            normalised.append(topic)
+        return normalised
 
     @field_validator("study_designs", mode="before")
     @classmethod

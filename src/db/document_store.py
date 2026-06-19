@@ -29,25 +29,6 @@ logger = logging.getLogger(__name__)
 # ── Return types ──────────────────────────────────────────────────────────────
 
 @dataclass
-class BM25Result:
-    chunk_id: str
-    text: str
-    rank: float
-    pmc_id: str
-    title: str
-    section: str
-    metadata: dict = field(default_factory=dict)
-
-
-@dataclass
-class SearchFilter:
-    cancer_types: list[str] = field(default_factory=list)
-    year_from: Optional[int] = None
-    year_to: Optional[int] = None
-    study_designs: list[str] = field(default_factory=list)
-
-
-@dataclass
 class CorpusStats:
     total_chunks: int = 0
     total_papers: int = 0
@@ -85,21 +66,12 @@ class DocumentStore:
         connect_args = {"check_same_thread": False} if sync_url.startswith("sqlite") else {}
         self._engine = create_engine(sync_url, connect_args=connect_args)
         Base.metadata.create_all(self._engine)
-        self._is_postgres = "postgresql" in sync_url or "postgres" in sync_url
 
     # ── Public async API ──────────────────────────────────────────────────────
 
     async def upsert_chunks(self, chunks: list) -> None:
         """Insert or update chunk rows (and their parent papers) in Postgres."""
         await asyncio.to_thread(self._upsert_chunks_sync, chunks)
-
-    async def full_text_search(
-        self,
-        query: str,
-        top_k: int = 10,
-        filter: SearchFilter | None = None,
-    ) -> list[BM25Result]:
-        return await asyncio.to_thread(self._full_text_search_sync, query, top_k, filter)
 
     async def get_chunk(self, chunk_id: str):
         return await asyncio.to_thread(self._get_chunk_sync, chunk_id)
@@ -166,73 +138,6 @@ class DocumentStore:
 
             session.commit()
         logger.debug("upsert_chunks: wrote %d chunks", len(chunks))
-
-    def _full_text_search_sync(
-        self, query: str, top_k: int, filter: SearchFilter | None
-    ) -> list[BM25Result]:
-        with Session(self._engine) as session:
-            if self._is_postgres:
-                return self._postgres_fts(session, query, top_k, filter)
-            return self._sqlite_fts_fallback(session, query, top_k, filter)
-
-    def _postgres_fts(
-        self, session: Session, query: str, top_k: int, filter: SearchFilter | None
-    ) -> list[BM25Result]:
-        sql = text("""
-            SELECT
-                c.id          AS chunk_id,
-                c.text        AS text,
-                c.section_name AS section,
-                p.pmc_id,
-                p.title,
-                ts_rank_cd(c.tsvector_col, plainto_tsquery('english', :q)) AS rank
-            FROM chunks c
-            JOIN papers p ON c.pmc_id = p.pmc_id
-            WHERE c.tsvector_col @@ plainto_tsquery('english', :q)
-            ORDER BY rank DESC
-            LIMIT :top_k
-        """)
-        rows = session.execute(sql, {"q": query, "top_k": top_k}).fetchall()
-        return [
-            BM25Result(
-                chunk_id=r.chunk_id,
-                text=r.text,
-                rank=float(r.rank),
-                pmc_id=r.pmc_id,
-                title=r.title or "",
-                section=r.section or "",
-            )
-            for r in rows
-        ]
-
-    def _sqlite_fts_fallback(
-        self, session: Session, query: str, top_k: int, filter: SearchFilter | None
-    ) -> list[BM25Result]:
-        terms = query.split()
-        if not terms:
-            return []
-        like_clause = " AND ".join(f"c.text LIKE :term{i}" for i in range(len(terms)))
-        sql = text(f"""
-            SELECT c.id AS chunk_id, c.text AS text, c.section_name AS section,
-                   p.pmc_id, p.title
-            FROM chunks c JOIN papers p ON c.pmc_id = p.pmc_id
-            WHERE {like_clause}
-            LIMIT :top_k
-        """)
-        params: dict = {f"term{i}": f"%{t}%" for i, t in enumerate(terms)}
-        params["top_k"] = top_k
-        rows = session.execute(sql, params).fetchall()
-        return [
-            BM25Result(
-                chunk_id=r.chunk_id,
-                text=r.text,
-                rank=1.0,
-                pmc_id=r.pmc_id,
-                title=r.title or "",
-                section=r.section or "",
-            )
-            for r in rows
-        ]
 
     def _get_chunk_sync(self, chunk_id: str):
         with Session(self._engine) as session:

@@ -25,7 +25,10 @@ from src.generation.card_generator import (
     _apply_regulatory_to_triplets,
     _build_context_block,
     _format_comorbidities,
+    _format_grounded_source,
+    _ground_sources,
     _strip_doc_tags,
+    _strip_invalid_doc_tags,
 )
 
 
@@ -408,3 +411,373 @@ class TestWarningIntegration:
                 confidence_score=0.8,
             )
         assert any(w.type == "biomarker" for w in result.treatment[0].warnings)
+
+
+# ── language="en" support ──────────────────────────────────────────────────────
+
+class TestLanguageSupport:
+    def test_default_language_unchanged(self):
+        """No `language` arg passed → byte-identical to pre-existing French defaults."""
+        llm = _make_llm(tool_return={"input": {}, "prompt_tokens": 0, "completion_tokens": 0})
+        gen = CardGenerator(llm_client=llm)
+        with (
+            patch("src.generation.card_generator._load_withdrawals", return_value=()),
+            patch("src.generation.card_generator._load_biomarker_entries", return_value=()),
+        ):
+            result = gen.generate_card(
+                patient_id="P4",
+                cancer_type="prostate",
+                age_range="",
+                clinical_history="mCRPC",
+                comorbidities={},
+                ranked_chunks=[],
+                confidence_score=0.5,
+            )
+        assert result.confidence == "Modérée"
+        assert result.treatment_confidence == "Modérée"
+
+    def test_english_fallback_defaults(self):
+        """language='en' switches the server-injected fallback text to English."""
+        llm = _make_llm(tool_return={"input": {}, "prompt_tokens": 0, "completion_tokens": 0})
+        gen = CardGenerator(llm_client=llm)
+        with (
+            patch("src.generation.card_generator._load_withdrawals", return_value=()),
+            patch("src.generation.card_generator._load_biomarker_entries", return_value=()),
+        ):
+            result = gen.generate_card(
+                patient_id="P5",
+                cancer_type="prostate",
+                age_range="",
+                clinical_history="mCRPC",
+                comorbidities={},
+                ranked_chunks=[],
+                confidence_score=0.5,
+                language="en",
+            )
+        assert result.confidence == "Moderate"
+        assert result.treatment_confidence == "Moderate"
+
+    def test_english_comorbidities_label(self):
+        assert _format_comorbidities({}, "No comorbidities specified") == "No comorbidities specified"
+
+    def test_english_regulatory_warning_uses_warning_field(self):
+        triplets = [TreatmentTriplet(drug="atezolizumab", intent="Palliative", level="A")]
+        context = "urothelial platinum-ineligible"
+        with patch("src.generation.card_generator._load_withdrawals", return_value=(_ATEZOLIZUMAB_ENTRY,)):
+            _apply_regulatory_to_triplets(triplets, context, "en")
+        assert "EMA approval withdrawn" in triplets[0].warnings[0].message
+
+    def test_english_biomarker_falls_back_to_french_when_no_english_text(self):
+        """If no English warning text exists yet, never silently drop the safety warning."""
+        triplets = [TreatmentTriplet(drug="lu-177-psma-617", intent="Palliative", level="B")]
+        context = "mCRPC, PSA 42"
+        with patch("src.generation.card_generator._load_biomarker_entries", return_value=(_LUTETIUM_BIOMARKER,)):
+            _apply_biomarker_to_triplets(triplets, context, "en")
+        assert len(triplets[0].warnings) == 1
+        assert "PSMA-PET" in triplets[0].warnings[0].message  # French text used as fallback
+
+
+# ── sources_detail (additive, grounded sources) ────────────────────────────────
+
+class TestSourcesDetail:
+    def test_sources_detail_present_alongside_free_text_sources(self):
+        llm = _make_llm()
+        gen = CardGenerator(llm_client=llm)
+        chunk = _make_chunk(title="Fizazi RCT", year=2019)
+        chunk.chunk_id = "PMC123_results_0"
+        with (
+            patch("src.generation.card_generator._load_withdrawals", return_value=()),
+            patch("src.generation.card_generator._load_biomarker_entries", return_value=()),
+        ):
+            result = gen.generate_card(
+                patient_id="P6",
+                cancer_type="prostate",
+                age_range="",
+                clinical_history="mCRPC",
+                comorbidities={},
+                ranked_chunks=[chunk],
+                confidence_score=0.7,
+            )
+        # Old field untouched — still the LLM's free-text sources.
+        assert result.sources == ["Fizazi et al. 2017 NEJM (RCT, n=1199)"]
+        # New field is additive and grounded in the actual chunk metadata.
+        detail = result.retrieval_metadata["sources_detail"]
+        assert len(detail) == 1
+        assert detail[0]["title"] == "Fizazi RCT"
+        assert detail[0]["year"] == 2019
+        assert detail[0]["chunk_id"] == "PMC123_results_0"
+
+
+# ── _strip_invalid_doc_tags (drug field, range-validated) ──────────────────────
+
+class TestStripInvalidDocTags:
+    def test_valid_tag_kept(self):
+        assert _strip_invalid_doc_tags("Abiraterone [Doc 1]", n_chunks=2) == "Abiraterone [Doc 1]"
+
+    def test_out_of_range_tag_removed(self):
+        assert _strip_invalid_doc_tags("Abiraterone [Doc 5]", n_chunks=2) == "Abiraterone"
+
+    def test_zero_is_always_invalid(self):
+        assert _strip_invalid_doc_tags("Drug [Doc 0]", n_chunks=3) == "Drug"
+
+    def test_mixed_valid_and_invalid(self):
+        result = _strip_invalid_doc_tags("Drug A [Doc 1] plus Drug B [Doc 9]", n_chunks=2)
+        assert result == "Drug A [Doc 1] plus Drug B"
+
+    def test_no_chunks_strips_everything(self):
+        assert _strip_invalid_doc_tags("Drug [Doc 1]", n_chunks=0) == "Drug"
+
+
+# ── _ground_sources / _format_grounded_source (hallucination-free citations) ──
+
+class TestGroundSources:
+    def _chunk(self, **meta_overrides):
+        chunk = MagicMock()
+        chunk.metadata = {
+            "title": "LATITUDE",
+            "authors": ["Fizazi K", "Tran N"],
+            "journal": "NEJM",
+            "year": 2017,
+            "study_design": "rct",
+            "sample_size": 1199,
+            **meta_overrides,
+        }
+        return chunk
+
+    def test_renders_text_purely_from_metadata(self):
+        chunks = [self._chunk()]
+        result = _ground_sources(["whatever the model wrote [Doc 1]"], chunks)
+        assert result == ["[Doc 1] Fizazi et al. 2017 NEJM (rct, n=1199)"]
+
+    def test_llm_authored_text_is_discarded(self):
+        """Even a wrong year/journal in the LLM's text is irrelevant — only the
+        [Doc N] pointer is read; the citation text itself is always regenerated."""
+        chunks = [self._chunk()]
+        result = _ground_sources(
+            ["Totally wrong author 1999 Fake Journal [Doc 1]"], chunks
+        )
+        assert "Fizazi" in result[0]
+        assert "2017" in result[0]
+        assert "Wrong" not in result[0] and "Fake" not in result[0]
+
+    def test_out_of_range_doc_dropped_entirely(self):
+        chunks = [self._chunk()]
+        result = _ground_sources(["[Doc 7]"], chunks)
+        assert result == []
+
+    def test_no_tag_at_all_dropped(self):
+        chunks = [self._chunk()]
+        result = _ground_sources(["Fizazi et al. 2017 NEJM"], chunks)
+        assert result == []
+
+    def test_duplicate_doc_numbers_deduplicated(self):
+        chunks = [self._chunk()]
+        result = _ground_sources(["[Doc 1]", "also [Doc 1] again"], chunks)
+        assert len(result) == 1
+
+    def test_multiple_valid_docs_preserve_order(self):
+        chunks = [self._chunk(), self._chunk(title="Other", authors=["Smith J"], year=2020)]
+        result = _ground_sources(["[Doc 2]", "[Doc 1]"], chunks)
+        assert "[Doc 2]" in result[0]
+        assert "[Doc 1]" in result[1]
+
+    def test_empty_chunks_yields_empty(self):
+        assert _ground_sources(["[Doc 1]"], []) == []
+
+
+# ── keep_citations integration (generate_card) ──────────────────────────────────
+
+class TestKeepCitations:
+    def _run(self, tool_return: dict, ranked_chunks=None, **kwargs):
+        llm = _make_llm(tool_return=tool_return)
+        gen = CardGenerator(llm_client=llm)
+        chunks = ranked_chunks if ranked_chunks is not None else [_make_chunk()]
+        with (
+            patch("src.generation.card_generator._load_withdrawals", return_value=()),
+            patch("src.generation.card_generator._load_biomarker_entries", return_value=()),
+        ):
+            return gen.generate_card(
+                patient_id="P1",
+                cancer_type="prostate",
+                age_range="",
+                clinical_history="mCRPC",
+                comorbidities={},
+                ranked_chunks=chunks,
+                confidence_score=0.8,
+                **kwargs,
+            )
+
+    def test_default_still_strips_drug_citation(self):
+        tool_return = {
+            "input": {
+                "stage": "mCRPC", "confidence": "High", "guideline": "EAU 2024",
+                "comorbidities_impact": "None.",
+                "treatment": [{"drug": "Abiraterone [Doc 1]", "intent": "Palliative", "level": "A"}],
+                "treatment_confidence": "High", "sources": ["Fizazi et al. 2017 [Doc 1]"],
+            },
+            "prompt_tokens": 1, "completion_tokens": 1,
+        }
+        result = self._run(tool_return)  # keep_citations defaults to False
+        assert "[Doc" not in result.treatment[0].drug
+        assert "[Doc" not in result.sources[0]
+
+    def test_keep_citations_preserves_valid_drug_tag(self):
+        tool_return = {
+            "input": {
+                "stage": "mCRPC", "confidence": "High", "guideline": "EAU 2024",
+                "comorbidities_impact": "None.",
+                "treatment": [{"drug": "Abiraterone [Doc 1]", "intent": "Palliative", "level": "A"}],
+                "treatment_confidence": "High", "sources": ["[Doc 1]"],
+            },
+            "prompt_tokens": 1, "completion_tokens": 1,
+        }
+        result = self._run(tool_return, keep_citations=True)
+        assert result.treatment[0].drug == "Abiraterone [Doc 1]"
+
+    def test_keep_citations_strips_out_of_range_drug_tag(self):
+        tool_return = {
+            "input": {
+                "stage": "mCRPC", "confidence": "High", "guideline": "EAU 2024",
+                "comorbidities_impact": "None.",
+                "treatment": [{"drug": "Abiraterone [Doc 99]", "intent": "Palliative", "level": "A"}],
+                "treatment_confidence": "High", "sources": [],
+            },
+            "prompt_tokens": 1, "completion_tokens": 1,
+        }
+        result = self._run(tool_return, keep_citations=True)
+        assert "[Doc" not in result.treatment[0].drug
+
+    def test_keep_citations_grounds_sources_field(self):
+        chunk = _make_chunk(title="LATITUDE", year=2017)
+        chunk.metadata["authors"] = ["Fizazi K"]
+        tool_return = {
+            "input": {
+                "stage": "mCRPC", "confidence": "High", "guideline": "EAU 2024",
+                "comorbidities_impact": "None.",
+                "treatment": [{"drug": "Abiraterone [Doc 1]", "intent": "Palliative", "level": "A"}],
+                "treatment_confidence": "High",
+                "sources": ["Some made-up citation text [Doc 1]"],
+            },
+            "prompt_tokens": 1, "completion_tokens": 1,
+        }
+        result = self._run(tool_return, ranked_chunks=[chunk], keep_citations=True)
+        assert result.sources == ["[Doc 1] Fizazi et al. 2017 (rct, n=100)"]
+
+    def test_stage_guideline_comorbidities_always_stripped_even_with_keep_citations(self):
+        tool_return = {
+            "input": {
+                "stage": "mCRPC [Doc 1]", "confidence": "High",
+                "guideline": "EAU 2024 [Doc 1]",
+                "comorbidities_impact": "None [Doc 1].",
+                "treatment": [{"drug": "Abiraterone [Doc 1]", "intent": "Palliative", "level": "A"}],
+                "treatment_confidence": "High", "sources": ["[Doc 1]"],
+            },
+            "prompt_tokens": 1, "completion_tokens": 1,
+        }
+        result = self._run(tool_return, keep_citations=True)
+        assert "[Doc" not in result.stage
+        assert "[Doc" not in result.guideline
+        assert "[Doc" not in result.comorbidities_impact
+        assert "[Doc" in result.treatment[0].drug  # only drug + sources keep tags
+
+
+# ── disclose_fallback (parametric-knowledge disclosure) ─────────────────────────
+
+class TestDiscloseFallback:
+    def _run(self, ranked_chunks: list, **kwargs):
+        llm = _make_llm()
+        gen = CardGenerator(llm_client=llm)
+        with (
+            patch("src.generation.card_generator._load_withdrawals", return_value=()),
+            patch("src.generation.card_generator._load_biomarker_entries", return_value=()),
+        ):
+            return gen.generate_card(
+                patient_id="P1",
+                cancer_type="prostate",
+                age_range="",
+                clinical_history="mCRPC",
+                comorbidities={},
+                ranked_chunks=ranked_chunks,
+                confidence_score=0.1,
+                **kwargs,
+            )
+
+    def test_default_does_not_touch_retrieval_metadata_shape(self):
+        result = self._run([])  # disclose_fallback defaults to False
+        assert "grounded" not in result.retrieval_metadata
+        # sources stay whatever the LLM happened to write — no override
+        assert result.sources == ["Fizazi et al. 2017 NEJM (RCT, n=1199)"]
+
+    def test_disclose_fallback_replaces_sources_when_no_chunks(self):
+        result = self._run([], disclose_fallback=True, language="en")
+        assert result.retrieval_metadata["grounded"] is False
+        assert len(result.sources) == 1
+        assert "No relevant literature" in result.sources[0]
+        assert result.retrieval_metadata["sources_detail"][0]["study_design"] == "parametric_knowledge"
+
+    def test_disclose_fallback_french_text_by_default_language(self):
+        result = self._run([], disclose_fallback=True, language="fr")
+        assert "Aucune littérature pertinente" in result.sources[0]
+
+    def test_disclose_fallback_noop_when_chunks_present(self):
+        result = self._run([_make_chunk()], disclose_fallback=True)
+        assert result.retrieval_metadata["grounded"] is True
+        assert result.sources == ["Fizazi et al. 2017 NEJM (RCT, n=1199)"]
+
+
+# ── _reclassify_intent language: custom system_prompt is authoritative ────────
+
+class TestReclassifyIntentLanguage:
+    """Regression coverage: intent-label language must follow whatever
+    system_prompt is actually in effect, not just the `language` param —
+    these can diverge when a caller overrides system_prompt without also
+    updating `language` to match."""
+
+    def _run_with_intent_response(self, intent_json: str, **generate_kwargs):
+        llm = _make_llm(tool_return=_DEFAULT_TOOL_RETURN)
+        llm.complete.return_value = MagicMock(content=intent_json)
+        gen = CardGenerator(llm_client=llm)
+        with (
+            patch("src.generation.card_generator._load_withdrawals", return_value=()),
+            patch("src.generation.card_generator._load_biomarker_entries", return_value=()),
+        ):
+            gen.generate_card(
+                patient_id="P1",
+                cancer_type="prostate",
+                age_range="",
+                clinical_history="mCRPC",
+                comorbidities={},
+                ranked_chunks=[_make_chunk()],
+                confidence_score=0.8,
+                **generate_kwargs,
+            )
+        # Inspect the actual system text sent to the intent-reclassification call.
+        return llm.complete.call_args.args[0]
+
+    def test_custom_french_prompt_wins_over_english_language_param(self):
+        """language='en' (e.g. a UI default) but the caller's own system_prompt
+        is French — intent labels must follow the French prompt, not 'en'."""
+        system_sent = self._run_with_intent_response(
+            '{"ADT + Abiraterone 1000 mg/day": "Palliatif"}',
+            system_prompt="Répondez entièrement en français.",
+            language="en",
+        )
+        assert "French intent labels only" in system_sent
+
+    def test_custom_english_prompt_wins_over_french_default_language(self):
+        """language defaults to 'fr' but the caller's own system_prompt is
+        English — intent labels must follow the English prompt, not the default."""
+        system_sent = self._run_with_intent_response(
+            '{"ADT + Abiraterone 1000 mg/day": "Palliative"}',
+            system_prompt="Answer entirely in English.",
+        )
+        assert "English intent labels only" in system_sent
+
+    def test_no_override_falls_back_to_language_param(self):
+        """No custom system_prompt at all — the default prompt was itself
+        built from `language`, so `language` alone is authoritative."""
+        system_sent = self._run_with_intent_response(
+            '{"ADT + Abiraterone 1000 mg/day": "Palliative"}',
+            language="en",
+        )
+        assert "English intent labels only" in system_sent
