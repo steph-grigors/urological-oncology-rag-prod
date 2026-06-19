@@ -776,6 +776,13 @@ def _apply_biomarker_to_triplets(
     """
     Add biomarker eligibility warnings when required biomarker is absent
     from the patient context.
+
+    Gated by `indication_keywords` (same mechanism as regulatory warnings) so
+    an indication-specific eligibility requirement — e.g. pembrolizumab's
+    CPS >= 10 rule, which only applies to post-platinum urothelial carcinoma —
+    doesn't fire on an unrelated indication (e.g. a prostate cancer card citing
+    pembrolizumab for an MSI-H/TMB-H tumor-agnostic rationale, which has no
+    CPS requirement at all).
     """
     entries = _load_biomarker_entries()
     if not entries:
@@ -787,6 +794,11 @@ def _apply_biomarker_to_triplets(
             patterns = entry.get("drug_patterns", [])
             if not any(p.lower() in drug_lower for p in patterns):
                 continue
+            indication_kws = entry.get("indication_keywords", [])
+            if indication_kws and not any(
+                kw.lower() in patient_context for kw in indication_kws
+            ):
+                continue
             biomarker_kws = entry.get("biomarker_keywords", [])
             if any(kw.lower() in patient_context for kw in biomarker_kws):
                 continue  # biomarker IS documented — no warning needed
@@ -795,7 +807,7 @@ def _apply_biomarker_to_triplets(
                 triplet.warnings.append(
                     TreatmentWarning(
                         type="biomarker",
-                        drug=triplet.drug,
+                        drug=entry.get("drug", triplet.drug),
                         jurisdiction="biomarker",
                         message=message,
                     )

@@ -25,7 +25,13 @@
       ],
       "warning_fr": "Lu-177-PSMA-617 (Pluvicto) requiert une positivité PSMA-PET confirmée (SUVmax au-dessus du seuil hépatique). Le statut PSMA-PET du patient n'est pas précisé dans l'anamnèse — vérifier le résultat de la scintigraphie PSMA avant de recommander ce traitement.",
       "warning": "Lu-177-PSMA-617 (Pluvicto) requires confirmed PSMA-PET positivity (SUVmax above liver threshold). The patient's PSMA-PET status is not specified in the history — verify the PSMA scan result before recommending this treatment.",
-      "jurisdiction": "biomarker"
+      "jurisdiction": "biomarker",
+      "drug": "Lu-177-PSMA-617 (Pluvicto)",
+      "indication_keywords": [
+        "prostate",
+        "mcrpc",
+        "castration-resistant"
+      ]
     },
     {
       "drug_patterns": [
@@ -57,7 +63,13 @@
       ],
       "warning_fr": "Les inhibiteurs de PARP requièrent une altération HRR/BRCA confirmée (tissu tumoral ou ADN tumoral circulant). Le statut HRR/BRCA du patient n'est pas précisé dans l'anamnèse — vérifier le résultat du séquençage moléculaire avant de recommander ce traitement.",
       "warning": "PARP inhibitors require a confirmed HRR/BRCA alteration (tumour tissue or circulating tumour DNA). The patient's HRR/BRCA status is not specified in the history — verify the molecular sequencing result before recommending this treatment.",
-      "jurisdiction": "biomarker"
+      "jurisdiction": "biomarker",
+      "drug": "PARP inhibitor",
+      "indication_keywords": [
+        "prostate",
+        "mcrpc",
+        "castration-resistant"
+      ]
     },
     {
       "drug_patterns": [
@@ -78,7 +90,14 @@
       ],
       "warning_fr": "Pembrolizumab en carcinome urothélial post-platine requiert un score CPS ≥ 10 (expression PD-L1, test DAKO 22C3). Le statut CPS du patient n'est pas précisé dans l'anamnèse — vérifier le résultat de l'expression PD-L1 avant de recommander ce traitement.",
       "jurisdiction": "biomarker",
-      "warning": "Pembrolizumab in post-platinum urothelial carcinoma requires a CPS ≥ 10 score (PD-L1 expression, DAKO 22C3 assay). The patient's CPS status is not specified in the history — verify the PD-L1 expression result before recommending this treatment."
+      "warning": "Pembrolizumab in post-platinum urothelial carcinoma requires a CPS ≥ 10 score (PD-L1 expression, DAKO 22C3 assay). The patient's CPS status is not specified in the history — verify the PD-L1 expression result before recommending this treatment.",
+      "drug": "pembrolizumab",
+      "indication_keywords": [
+        "urothelial",
+        "bladder",
+        "platinum",
+        "platine"
+      ]
     }
   ]
 }

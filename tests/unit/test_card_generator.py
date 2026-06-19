@@ -102,6 +102,17 @@ _PARP_BIOMARKER = {
     "jurisdiction": "biomarker",
 }
 
+_PEMBROLIZUMAB_BIOMARKER = {
+    "drug": "pembrolizumab",
+    "drug_patterns": ["pembrolizumab", "keytruda"],
+    "required_biomarker": "CPS >= 10",
+    "biomarker_keywords": ["cps", "pd-l1", "22c3"],
+    "indication_keywords": ["urothelial", "bladder", "platinum"],
+    "warning": "Pembrolizumab in post-platinum urothelial carcinoma requires CPS >= 10.",
+    "warning_fr": "Pembrolizumab en carcinome urothélial post-platine requiert un score CPS >= 10.",
+    "jurisdiction": "biomarker",
+}
+
 
 # ── _strip_doc_tags ───────────────────────────────────────────────────────────
 
@@ -250,6 +261,58 @@ class TestApplyBiomarkerToTriplets:
         with patch("src.generation.card_generator._load_biomarker_entries", return_value=(_LUTETIUM_BIOMARKER,)):
             _apply_biomarker_to_triplets(triplets, context)
         assert triplets[0].warnings == []
+
+    def test_indication_mismatch_suppresses_warning(self):
+        """Regression: pembrolizumab's CPS>=10 rule is specific to post-platinum
+        urothelial carcinoma — it must not fire on an unrelated indication
+        (e.g. a prostate cancer card citing pembrolizumab for an MSI-H/TMB-H
+        tumor-agnostic rationale, which has no CPS requirement at all)."""
+        triplets = [TreatmentTriplet(
+            drug="Pembrolizumab for MSI-H/TMB-H tumors [Doc 4]", intent="Palliatif", level="B"
+        )]
+        context = "prostate mcrpc, msi-h tumor"
+        with patch(
+            "src.generation.card_generator._load_biomarker_entries",
+            return_value=(_PEMBROLIZUMAB_BIOMARKER,),
+        ):
+            _apply_biomarker_to_triplets(triplets, context)
+        assert triplets[0].warnings == []
+
+    def test_indication_match_still_fires(self):
+        triplets = [TreatmentTriplet(drug="pembrolizumab", intent="Palliatif", level="B")]
+        context = "bladder urothelial carcinoma, platinum-refractory"
+        with patch(
+            "src.generation.card_generator._load_biomarker_entries",
+            return_value=(_PEMBROLIZUMAB_BIOMARKER,),
+        ):
+            _apply_biomarker_to_triplets(triplets, context)
+        assert len(triplets[0].warnings) == 1
+
+    def test_warning_drug_field_is_canonical_name_not_full_triplet_text(self):
+        """Regression: the warning's `drug` field must be the entry's short
+        canonical name, not a verbatim copy of the triplet's full drug text
+        (which can include citation tags and a long parenthetical)."""
+        triplets = [TreatmentTriplet(
+            drug="Pembrolizumab (200mg IV q3w) for CPS+ disease [Doc 2] [Doc 3]",
+            intent="Palliatif", level="B",
+        )]
+        context = "bladder urothelial carcinoma, platinum-refractory"
+        with patch(
+            "src.generation.card_generator._load_biomarker_entries",
+            return_value=(_PEMBROLIZUMAB_BIOMARKER,),
+        ):
+            _apply_biomarker_to_triplets(triplets, context)
+        assert triplets[0].warnings[0].drug == "pembrolizumab"
+
+    def test_entry_without_indication_keywords_fires_unconditionally(self):
+        """Backward compatibility: entries with no indication_keywords field
+        (e.g. _LUTETIUM_BIOMARKER, _PARP_BIOMARKER above) keep firing regardless
+        of indication, exactly as before this fix."""
+        triplets = [TreatmentTriplet(drug="lu-177-psma-617", intent="Palliatif", level="B")]
+        context = "completely unrelated context with no prostate mention"
+        with patch("src.generation.card_generator._load_biomarker_entries", return_value=(_LUTETIUM_BIOMARKER,)):
+            _apply_biomarker_to_triplets(triplets, context)
+        assert len(triplets[0].warnings) == 1
 
 
 # ── CardGenerator.translate_to_english ───────────────────────────────────────
