@@ -428,18 +428,22 @@ def display_treatment_card(card: dict, show_context: bool) -> None:
 
     st.markdown(f"### 🧾 Treatment Card — Patient {card.get('patient_id', '')}")
 
-    c1, c2, c3 = st.columns(3)
+    # `confidence`/`guideline` stay short in practice (single word/code) so a
+    # KPI-style st.metric works. `treatment_confidence` is often a full
+    # justification sentence — st.metric truncates long values with no
+    # wrapping, so it's rendered as wrapped text below instead.
+    c1, c2 = st.columns(2)
     with c1:
         st.metric("Confidence", card.get("confidence", "—"))
     with c2:
         st.metric("Guideline", card.get("guideline", "—"))
-    with c3:
-        st.metric("Treatment confidence", card.get("treatment_confidence", "—"))
 
     if card.get("stage"):
         st.caption(f"**Stage:** {card['stage']}")
     if card.get("comorbidities_impact"):
         st.caption(f"**Comorbidities impact:** {card['comorbidities_impact']}")
+    if card.get("treatment_confidence"):
+        st.caption(f"**Treatment confidence:** {card['treatment_confidence']}")
 
     st.divider()
     st.markdown("#### 💊 Recommended treatments")
