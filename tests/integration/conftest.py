@@ -23,12 +23,7 @@ import numpy as np
 import pytest
 from qdrant_client import QdrantClient
 
-from src.db.vector_store import (
-    ChunkDocument,
-    QdrantStore,
-    ScoredChunk,
-    text_to_sparse_vector,
-)
+from src.db.vector_store import ChunkDocument, QdrantStore, ScoredChunk
 from src.ingestion.chunk import chunk_paper
 from src.ingestion.parse import parse_paper
 from src.retrieval.bm25_search import BM25Search
@@ -121,14 +116,11 @@ def indexed_chunks(qdrant_store: QdrantStore) -> list[ScoredChunk]:
 
         for chunk in chunks:
             dense_vec = make_embedding(cancer_type[0], chunk.id)
-            sparse_idx, sparse_val = text_to_sparse_vector(chunk.text)
 
             all_docs.append(ChunkDocument(
                 chunk_id=chunk.id,
                 text=chunk.text,
                 dense_vector=dense_vec,
-                sparse_indices=sparse_idx,
-                sparse_values=sparse_val,
                 pmid=chunk.metadata.pmid,
                 pmcid=chunk.metadata.pmcid,
                 title=chunk.metadata.title,

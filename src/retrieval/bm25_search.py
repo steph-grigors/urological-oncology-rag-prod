@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 BM25_CACHE_DIR = "data/bm25_cache"
 
 
-# ── Tokeniser (shared with sparse vector helpers) ─────────────────────────────
+# ── Tokeniser ─────────────────────────────────────────────────────────────────
 
 def _tokenize(text: str) -> list[str]:
     text = text.lower()

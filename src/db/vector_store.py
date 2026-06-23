@@ -2,9 +2,11 @@
 Qdrant vector store abstraction.
 
 Wraps qdrant-client with a domain-specific interface so no other module
-imports from qdrant-client directly.  Collection uses named vectors:
-  "dense"  — 1536-dim cosine (text-embedding-3-small)
-  "sparse" — hash-based sparse vectors (TF weights, for keyword search)
+imports from qdrant-client directly.  Collection uses a single default
+(unnamed) dense vector — 1536-dim cosine (text-embedding-3-small) — matching
+what src/ingestion/embed.py actually writes in production. Keyword search is
+handled separately by the in-memory bm25s index (src/retrieval/bm25_search.py),
+not by Qdrant.
 
 Payload indexes are created on first call to ensure_collection so that
 Qdrant can accelerate filtered searches without scanning all points.
@@ -13,8 +15,6 @@ Qdrant can accelerate filtered searches without scanning all points.
 from __future__ import annotations
 
 import uuid
-import re
-from collections import Counter
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -29,29 +29,21 @@ from qdrant_client.models import (
     PayloadSchemaType,
     PointStruct,
     Range,
-    SparseIndexParams,
-    SparseVector,
-    SparseVectorParams,
     VectorParams,
 )
 
 COLLECTION_NAME = "urological_oncology_v2"
-DENSE_VECTOR = "dense"
-SPARSE_VECTOR = "sparse"
 EMBEDDING_DIMENSION = 1536
-_HASH_BUCKETS = 2**20  # 1 048 576 — keeps hash collision rate < 0.01 %
 
 
 # ── Shared data classes ───────────────────────────────────────────────────────
 
 @dataclass
 class ChunkDocument:
-    """A chunk ready for upsert into Qdrant (vectors pre-computed)."""
+    """A chunk ready for upsert into Qdrant (vector pre-computed)."""
     chunk_id: str
     text: str
     dense_vector: list[float]
-    sparse_indices: list[int]
-    sparse_values: list[float]
     # ── Metadata fields stored as payload ────────────────────────────────
     pmid: str
     pmcid: str
@@ -78,45 +70,6 @@ class ScoredChunk:
     metadata: dict = field(default_factory=dict)
 
 
-# ── Sparse vector helpers ─────────────────────────────────────────────────────
-
-def _tokenize(text: str) -> list[str]:
-    text = text.lower()
-    text = re.sub(r"[^\w\s]", " ", text)
-    return [w for w in text.split() if w]
-
-
-def text_to_sparse_vector(text: str) -> tuple[list[int], list[float]]:
-    """
-    Convert chunk text to a (indices, values) sparse vector.
-
-    Uses a hash vocabulary so no global dictionary is needed.  Values are
-    term-frequency weights; index collisions are summed (they are rare at
-    1 M buckets).  Indices returned sorted ascending (Qdrant requirement).
-    """
-    tokens = _tokenize(text)
-    if not tokens:
-        return [], []
-    counts = Counter(tokens)
-    total = len(tokens)
-    idx_val: dict[int, float] = {}
-    for token, count in counts.items():
-        idx = abs(hash(token)) % _HASH_BUCKETS
-        idx_val[idx] = idx_val.get(idx, 0.0) + count / total
-    pairs = sorted(idx_val.items())
-    return [p[0] for p in pairs], [p[1] for p in pairs]
-
-
-def tokens_to_sparse_query(tokens: list[str]) -> tuple[list[int], list[float]]:
-    """Build a binary sparse query vector from pre-tokenized terms."""
-    idx_val: dict[int, float] = {}
-    for token in tokens:
-        idx = abs(hash(token)) % _HASH_BUCKETS
-        idx_val[idx] = 1.0
-    pairs = sorted(idx_val.items())
-    return [p[0] for p in pairs], [p[1] for p in pairs]
-
-
 # ── QdrantStore ───────────────────────────────────────────────────────────────
 
 class QdrantStore:
@@ -136,21 +89,8 @@ class QdrantStore:
         self._client = client
         self._collection = collection_name
         self.ensure_collection()
-        # Detect whether the live collection uses named vectors ("dense") or
-        # a single default vector. Production was ingested before named-vector
-        # schema, so using=DENSE_VECTOR raises 400 Bad Request there.
-        self._has_named_vectors = self._detect_named_vectors()
 
     # ── Collection management ─────────────────────────────────────────────
-
-    def _detect_named_vectors(self) -> bool:
-        """Return True if the collection has a named 'dense' vector, False if default."""
-        try:
-            info = self._client.get_collection(self._collection)
-            vectors = info.config.params.vectors
-            return isinstance(vectors, dict) and DENSE_VECTOR in vectors
-        except Exception:
-            return True  # new collections created by ensure_collection use named vectors
 
     def ensure_collection(self) -> None:
         """Create collection + payload indexes if they do not already exist."""
@@ -158,17 +98,10 @@ class QdrantStore:
         if self._collection not in existing:
             self._client.create_collection(
                 collection_name=self._collection,
-                vectors_config={
-                    DENSE_VECTOR: VectorParams(
-                        size=EMBEDDING_DIMENSION,
-                        distance=Distance.COSINE,
-                    )
-                },
-                sparse_vectors_config={
-                    SPARSE_VECTOR: SparseVectorParams(
-                        index=SparseIndexParams(on_disk=False)
-                    )
-                },
+                vectors_config=VectorParams(
+                    size=EMBEDDING_DIMENSION,
+                    distance=Distance.COSINE,
+                ),
             )
             self._create_payload_indexes()
 
@@ -217,31 +150,9 @@ class QdrantStore:
         filters: dict | None = None,
     ) -> list[ScoredChunk]:
         """ANN search using the dense cosine index."""
-        kwargs = {"using": DENSE_VECTOR} if self._has_named_vectors else {}
         results = self._client.query_points(
             collection_name=self._collection,
             query=query_embedding,
-            **kwargs,
-            query_filter=_build_filter(filters),
-            limit=top_k,
-            with_payload=True,
-        )
-        return [_to_scored_chunk(p) for p in results.points]
-
-    def search_sparse(
-        self,
-        query_tokens: list[str],
-        top_k: int,
-        filters: dict | None = None,
-    ) -> list[ScoredChunk]:
-        """Sparse keyword search using hash-TF document vectors."""
-        indices, values = tokens_to_sparse_query(query_tokens)
-        if not indices:
-            return []
-        results = self._client.query_points(
-            collection_name=self._collection,
-            query=SparseVector(indices=indices, values=values),
-            using=SPARSE_VECTOR,
             query_filter=_build_filter(filters),
             limit=top_k,
             with_payload=True,
@@ -300,13 +211,7 @@ def _chunk_uuid(chunk_id: str) -> str:
 def _to_point(c: ChunkDocument) -> PointStruct:
     return PointStruct(
         id=_chunk_uuid(c.chunk_id),
-        vector={
-            DENSE_VECTOR: c.dense_vector,
-            SPARSE_VECTOR: SparseVector(
-                indices=c.sparse_indices,
-                values=c.sparse_values,
-            ),
-        },
+        vector=c.dense_vector,
         payload={
             "chunk_id": c.chunk_id,
             "text": c.text,
