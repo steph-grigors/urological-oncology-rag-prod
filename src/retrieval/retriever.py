@@ -28,10 +28,12 @@ import logging
 
 from openai import OpenAI
 
+from config.constants import CONFIDENCE_LOW
 from src.db.vector_store import QdrantStore, ScoredChunk
 from src.retrieval.bm25_search import BM25Search
 from src.retrieval.hybrid import rrf_fusion
 from src.retrieval.reranker import CohereReranker, RankedChunk
+from src.retrieval.web_fallback import PubMedWebSearch
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,7 @@ class RetrievalResult:
     retrieval_confidence: float   # mean relevance_score of returned chunks
     num_candidates: int           # candidates entering the reranker
     latency_ms: dict[str, float] = field(default_factory=dict)
+    used_web_fallback: bool = False  # True if local evidence graded Incorrect and PubMed fallback fired
 
 
 # ── Embedding cache ───────────────────────────────────────────────────────────
@@ -102,6 +105,10 @@ class RAGRetriever:
                                top-N pool. Set to None to disable. Default 3 is
                                intentionally permissive for rare-cancer queries
                                (penile, adrenal) where reviews are the evidence base.
+    web_fallback             : optional PubMedWebSearch. If every reranked chunk grades
+                               Incorrect (relevance_score < CONFIDENCE_LOW), a single
+                               question-level PubMed search runs instead of returning
+                               nothing. Pass None (default) to disable.
     """
 
     # Only narrative reviews are capped. "unknown" is excluded: it is the
@@ -120,6 +127,7 @@ class RAGRetriever:
         top_k_retrieval: int = 20,
         top_k_rerank: int = 5,
         source_type_diversity_cap: Optional[int] = 3,
+        web_fallback: Optional[PubMedWebSearch] = None,
     ) -> None:
         self._store = store
         self._bm25 = bm25
@@ -129,6 +137,7 @@ class RAGRetriever:
         self._top_k_retrieval = top_k_retrieval
         self._top_k_rerank = top_k_rerank
         self._diversity_cap = source_type_diversity_cap
+        self._web_fallback = web_fallback
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -183,30 +192,48 @@ class RAGRetriever:
         t3 = time.perf_counter()
         ranked = self._reranker.rerank(query, fused, top_n=k_rnk)
         timings["rerank_ms"] = (time.perf_counter() - t3) * 1000
+
+        # ── Step 5b: cRAG-lite — discard chunks graded Incorrect ──────────
+        # A chunk graded Incorrect (relevance_score < CONFIDENCE_LOW) is
+        # dropped entirely rather than diluting the mean, so a single bad
+        # match no longer silently lowers confidence for otherwise-good
+        # retrieval. If every chunk was Incorrect, local evidence is too
+        # weak to answer from, and a single question-level PubMed search
+        # runs in its place (no per-chunk search, no agentic loop).
+        graded = [c for c in ranked if c.relevance_score >= CONFIDENCE_LOW]
+        used_web_fallback = False
+        if not graded and self._web_fallback is not None:
+            t4 = time.perf_counter()
+            graded = self._web_fallback.search(query, max_results=k_rnk)
+            timings["web_fallback_ms"] = (time.perf_counter() - t4) * 1000
+            used_web_fallback = bool(graded)
+
         timings["total_ms"] = (time.perf_counter() - t_start) * 1000
 
         confidence = (
-            sum(c.relevance_score for c in ranked) / len(ranked)
-            if ranked else 0.0
+            sum(c.relevance_score for c in graded) / len(graded)
+            if graded else 0.0
         )
 
         logger.info(
             "Retrieval timings — embed: %.0fms | dense: %.0fms | bm25: %.0fms | "
-            "rerank: %.0fms | total: %.0fms | query_len: %d chars",
+            "rerank: %.0fms | total: %.0fms | query_len: %d chars | web_fallback: %s",
             timings.get("embed_ms", 0),
             timings.get("dense_ms", 0),
             timings.get("bm25_ms", 0),
             timings.get("rerank_ms", 0),
             timings.get("total_ms", 0),
             len(query),
+            used_web_fallback,
         )
 
         return RetrievalResult(
             query=query,
-            chunks=ranked,
+            chunks=graded,
             retrieval_confidence=confidence,
             num_candidates=len(fused),
             latency_ms=timings,
+            used_web_fallback=used_web_fallback,
         )
 
     # ── Private helpers ───────────────────────────────────────────────────

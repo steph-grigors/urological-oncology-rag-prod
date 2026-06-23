@@ -45,12 +45,16 @@ async def lifespan(app: FastAPI):
         from src.retrieval.bm25_search import BM25Search
         from src.retrieval.reranker import CohereReranker
         from src.retrieval.retriever import RAGRetriever
+        from src.retrieval.web_fallback import PubMedWebSearch
 
         qdrant_client = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
         store = QdrantStore(qdrant_client, collection_name=settings.qdrant_collection)
 
         bm25 = BM25Search.from_qdrant(store)
         reranker = CohereReranker(api_key=settings.cohere_api_key)
+        web_fallback = PubMedWebSearch(
+            email=settings.entrez_email, api_key=settings.ncbi_api_key
+        )
 
         from openai import OpenAI
         openai_client = OpenAI(api_key=settings.openai_api_key)
@@ -63,6 +67,7 @@ async def lifespan(app: FastAPI):
             embedding_model=settings.embedding_model,
             top_k_retrieval=settings.top_k_retrieval,
             top_k_rerank=settings.top_k_rerank,
+            web_fallback=web_fallback,
         )
         app.state.retriever = retriever
         logger.info("Retrieval stack initialised")

@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(..., alias="OPENAI_API_KEY")
     anthropic_api_key: str = Field("", alias="ANTHROPIC_API_KEY")
     cohere_api_key: str = Field("", alias="COHERE_API_KEY")
+    entrez_email: str = Field("", alias="ENTREZ_EMAIL")
+    ncbi_api_key: str = Field("", alias="NCBI_API_KEY")
 
     # ── Observability ────────────────────────────────────────────────────────
     langfuse_public_key: str = Field("", alias="LANGFUSE_PUBLIC_KEY")
