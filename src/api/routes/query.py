@@ -4,6 +4,7 @@ POST /query — main RAG query endpoint.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 import uuid
@@ -148,7 +149,8 @@ async def query_endpoint(
 
     # ── Retrieval ─────────────────────────────────────────────────────────
     try:
-        retrieval_result = retriever.retrieve(
+        retrieval_result = await asyncio.to_thread(
+            retriever.retrieve,
             body.query,
             filters=filters or None,
             top_k_rerank=body.top_k,
@@ -173,7 +175,8 @@ async def query_endpoint(
     # ── Generation ────────────────────────────────────────────────────────
     t_gen = time.perf_counter()
     try:
-        gen_result = generator.generate(
+        gen_result = await asyncio.to_thread(
+            generator.generate,
             body.query,
             retrieval_result.chunks,
             conversation_history=conversation_history,

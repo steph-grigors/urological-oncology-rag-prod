@@ -7,6 +7,7 @@ behaviour relied on by existing callers); pass language="en" for English.
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import TYPE_CHECKING, Any, Literal
@@ -147,7 +148,9 @@ async def treatment_card_endpoint(
     # ── Step 1: translate clinical narrative to English for retrieval ──────
     narrative = _build_narrative(body)
     try:
-        english_query = card_generator.translate_to_english(narrative)
+        english_query = await asyncio.to_thread(
+            card_generator.translate_to_english, narrative
+        )
     except Exception as exc:
         logger.warning("Translation failed, falling back to raw narrative: %s", exc)
         english_query = narrative
@@ -155,7 +158,8 @@ async def treatment_card_endpoint(
     # ── Step 2: retrieve relevant chunks ──────────────────────────────────
     filters: dict = {"cancer_type": [body.cancer_type]}
     try:
-        retrieval_result = retriever.retrieve(
+        retrieval_result = await asyncio.to_thread(
+            retriever.retrieve,
             english_query,
             filters=filters,
             top_k_rerank=body.top_k,
@@ -179,7 +183,8 @@ async def treatment_card_endpoint(
         chunks_for_generation = retrieval_result.chunks
 
     try:
-        card_result = card_generator.generate_card(
+        card_result = await asyncio.to_thread(
+            card_generator.generate_card,
             patient_id=body.patient_id,
             cancer_type=body.cancer_type,
             age_range=body.age_range,
