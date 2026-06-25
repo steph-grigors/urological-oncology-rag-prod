@@ -53,6 +53,11 @@ class ClinicalGenerator:
         confidence_result = compute_confidence(ranked_chunks)
         confidence_gate = gate(confidence_result.score)
         active_system_prompt = system_prompt if system_prompt is not None else SYSTEM_PROMPT
+        # /query has no explicit `language` field (unlike /treatment-card) — callers
+        # that want French answers (e.g. onco-review-app) signal it by supplying
+        # their own French system_prompt, so detect it the same way as
+        # card_generator._reclassify_intent does, rather than always assuming English.
+        answer_language = "fr" if "français" in active_system_prompt.lower() else "en"
 
         if self._llm is None:
             return GenerationResult(
@@ -78,7 +83,9 @@ class ClinicalGenerator:
             )
             latency_ms = (time.monotonic() - start) * 1000
             return GenerationResult(
-                answer=apply_regulatory_warnings(FALLBACK_DISCLAIMER + response.content),
+                answer=apply_regulatory_warnings(
+                    FALLBACK_DISCLAIMER + response.content, language=answer_language
+                ),
                 citations=[],
                 evidence_quality="insufficient",
                 model_used=response.model,
@@ -112,7 +119,7 @@ class ClinicalGenerator:
             {int(m) for m in DOC_TAG_RE.findall(answer)} - set(hallucinated)
         )
 
-        answer = apply_regulatory_warnings(answer)
+        answer = apply_regulatory_warnings(answer, language=answer_language)
 
         return GenerationResult(
             answer=answer,

@@ -52,7 +52,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from src.generation.citations import DOC_TAG_RE, strip_invalid_citations
-from src.generation.post_process import _load_withdrawals
+from src.generation.post_process import _load_withdrawals, _localized_warning
 from src.generation.source_card import chunk_to_source_detail, disclosure_source_detail
 
 if TYPE_CHECKING:
@@ -107,14 +107,6 @@ _LABELS: dict[str, dict[str, str]] = {
 
 def _labels(language: str) -> dict[str, str]:
     return _LABELS.get(language, _LABELS["fr"])
-
-
-def _localized_warning(entry: dict, language: str) -> str:
-    """Pick the warning text for `language`, falling back to the other
-    language rather than silently dropping a clinical-safety warning."""
-    if language == "fr":
-        return entry.get("warning_fr") or entry.get("warning", "")
-    return entry.get("warning") or entry.get("warning_fr", "")
 
 
 # ── Data loaders ──────────────────────────────────────────────────────────────
