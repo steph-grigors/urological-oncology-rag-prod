@@ -1,6 +1,24 @@
 """
 In-process sliding-window rate limiter.
 
+LIMITATION — single-instance only: counters live in a plain dict on this
+process (self._counters), with no shared state across processes. This is
+correct today because the production deployment (docker/docker-compose.yml)
+runs exactly one `api` container. It silently breaks the moment more than
+one API instance/worker is run behind a load balancer: each instance gets
+its own independent counter, so a client load-balanced evenly across N
+instances effectively gets N times the configured limit, and the limiter
+stops doing its job in proportion to N.
+
+Before running more than one API instance, replace self._counters with a
+shared, atomic counter (e.g. Redis INCR+EXPIRE, or a sorted set for a true
+sliding window) so all instances see the same count. Decide explicitly
+whether to fail open or closed if that shared store is unreachable —
+every other graceful-degradation path in this codebase (CohereReranker,
+PubMedWebSearch) fails open, so that's the likely default, but it's a
+security-adjacent control and deserves an explicit choice, not an implicit
+one inherited from copy-pasting the pattern.
+
 TODO: Replace the in-process dict with Redis for multi-instance deployments.
 """
 
