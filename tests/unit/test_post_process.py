@@ -159,3 +159,60 @@ class TestAnswerPreserved:
         with patch("src.generation.post_process._load_withdrawals", return_value=_TEST_ENTRIES):
             result = apply_regulatory_warnings(answer)
         assert result is answer
+
+
+# ── Language selection (language= param) ───────────────────────────────────────
+
+class TestLanguageSelection:
+    _BILINGUAL_ENTRY = {
+        "drug": "atezolizumab",
+        "aliases": ["tecentriq"],
+        "indication_keywords": ["urothelial", "bladder", "urothélial"],
+        "jurisdiction": "EMA",
+        "status": "withdrawn",
+        "warning": "Atezolizumab EMA approval was withdrawn (2021).",
+        "warning_fr": "L'AMM de l'EMA pour l'atézolizumab a été retirée (2021).",
+        "source": "manual",
+    }
+
+    def test_default_language_is_english(self):
+        answer = "Atezolizumab in urothelial carcinoma [Doc 1]."
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=(self._BILINGUAL_ENTRY,),
+        ):
+            result = apply_regulatory_warnings(answer)
+        assert "Atezolizumab EMA approval" in result
+        assert "AMM de l'EMA" not in result
+
+    def test_french_language_selects_warning_fr(self):
+        answer = "Atezolizumab dans le carcinome urothélial [Doc 1]."
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=(self._BILINGUAL_ENTRY,),
+        ):
+            result = apply_regulatory_warnings(answer, language="fr")
+        assert "L'AMM de l'EMA pour l'atézolizumab" in result
+        assert "Atezolizumab EMA approval" not in result
+
+    def test_french_falls_back_to_english_when_warning_fr_missing(self):
+        entry = {**self._BILINGUAL_ENTRY}
+        del entry["warning_fr"]
+        answer = "Atezolizumab dans le carcinome urothélial [Doc 1]."
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=(entry,),
+        ):
+            result = apply_regulatory_warnings(answer, language="fr")
+        assert "Atezolizumab EMA approval" in result
+
+    def test_english_falls_back_to_french_when_warning_missing(self):
+        entry = {**self._BILINGUAL_ENTRY}
+        del entry["warning"]
+        answer = "Atezolizumab in urothelial carcinoma [Doc 1]."
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=(entry,),
+        ):
+            result = apply_regulatory_warnings(answer, language="en")
+        assert "L'AMM de l'EMA pour l'atézolizumab" in result

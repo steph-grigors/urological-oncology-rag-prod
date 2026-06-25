@@ -51,7 +51,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from src.generation.post_process import _load_withdrawals
+from src.generation.post_process import _load_withdrawals, _localized_warning
 
 if TYPE_CHECKING:
     from src.generation.llm_client import LLMClient
@@ -107,14 +107,6 @@ _LABELS: dict[str, dict[str, str]] = {
 
 def _labels(language: str) -> dict[str, str]:
     return _LABELS.get(language, _LABELS["fr"])
-
-
-def _localized_warning(entry: dict, language: str) -> str:
-    """Pick the warning text for `language`, falling back to the other
-    language rather than silently dropping a clinical-safety warning."""
-    if language == "fr":
-        return entry.get("warning_fr") or entry.get("warning", "")
-    return entry.get("warning") or entry.get("warning_fr", "")
 
 
 # ── Data loaders ──────────────────────────────────────────────────────────────

@@ -45,7 +45,16 @@ def _load_withdrawals() -> tuple[dict, ...]:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def apply_regulatory_warnings(answer: str) -> str:
+def _localized_warning(entry: dict, language: str) -> str:
+    """Pick the warning text for `language`, falling back to the other
+    language rather than silently dropping a clinical-safety warning.
+    Shared with src/generation/card_generator.py's identical need."""
+    if language == "fr":
+        return entry.get("warning_fr") or entry.get("warning", "")
+    return entry.get("warning") or entry.get("warning_fr", "")
+
+
+def apply_regulatory_warnings(answer: str, language: str = "en") -> str:
     """
     Append regulatory withdrawal warnings to the answer when a withdrawn drug
     is mentioned in the context of its withdrawn indication.
@@ -54,6 +63,12 @@ def apply_regulatory_warnings(answer: str) -> str:
       1. A drug name or alias appears in the answer (case-insensitive substring)
       2. At least one indication keyword for that entry appears in the answer
          (or the entry has no indication_keywords, in which case it always fires)
+
+    `language` selects which translation of the warning text is appended
+    (default "en" preserves pre-existing behaviour for callers that don't
+    pass it — /query's answers are English by default). Falls back to the
+    other language's text rather than silently dropping a safety warning if
+    the requested translation is missing for a given entry.
 
     Multiple matching entries produce multiple warning paragraphs.
     The original answer is always returned unchanged if no entries match.
@@ -74,7 +89,7 @@ def apply_regulatory_warnings(answer: str) -> str:
         if indication_kws and not any(kw.lower() in answer_lower for kw in indication_kws):
             continue
 
-        warning = entry.get("warning", "")
+        warning = _localized_warning(entry, language)
         if warning:
             found.append(f"⚠️ **Regulatory note:** {warning}")
 

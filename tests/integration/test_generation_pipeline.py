@@ -390,10 +390,11 @@ class TestRegulatoryWarnings:
         {
             "drug": "atezolizumab",
             "aliases": ["tecentriq"],
-            "indication_keywords": ["urothelial", "bladder", "platinum-ineligible"],
+            "indication_keywords": ["urothelial", "bladder", "platinum-ineligible", "urothélial"],
             "jurisdiction": "EMA",
             "status": "withdrawn",
             "warning": "Atezolizumab EMA approval for platinum-ineligible UC was withdrawn (2021).",
+            "warning_fr": "L'AMM de l'EMA pour l'atézolizumab a été retirée (2021).",
             "source": "manual",
         },
     )
@@ -487,3 +488,28 @@ class TestRegulatoryWarnings:
         assert 1 in result.citations
         assert 2 in result.citations
         assert "⚠️" in result.answer
+
+    def test_french_system_prompt_appends_french_warning(self):
+        # Regression: apply_regulatory_warnings used to only ever read the
+        # English `warning` field, so a French answer got an English
+        # paragraph appended. A French system_prompt must now select warning_fr.
+        from unittest.mock import patch
+
+        llm = _mock_llm(
+            "Atezolizumab a amélioré la survie dans le carcinome urothélial [Doc 1]."
+        )
+        gen = ClinicalGenerator(llm_client=llm)
+
+        with patch(
+            "src.generation.post_process._load_withdrawals",
+            return_value=self._WITHDRAWAL_ENTRIES,
+        ):
+            result = gen.generate(
+                "Efficacité de l'atezolizumab?",
+                self._chunks(),
+                system_prompt="Vous êtes un assistant clinique. Répondez en français.",
+            )
+
+        assert "⚠️" in result.answer
+        assert "L'AMM de l'EMA pour l'atézolizumab" in result.answer
+        assert "Atezolizumab EMA approval" not in result.answer
