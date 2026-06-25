@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.api.middleware.auth import require_api_key
 from src.observability.logging import get_logger, query_id_var
-from config.constants import CONFIDENCE_REFUSE, SUPPORTED_TOPICS, TOPIC_ALIASES
+from config.constants import CONFIDENCE_REFUSE, normalise_topic
 
 if TYPE_CHECKING:
     from src.generation.card_generator import CardGenerator
@@ -74,14 +74,7 @@ class TreatmentCardRequest(BaseModel):
     @field_validator("cancer_type")
     @classmethod
     def normalise_cancer_type(cls, v: str) -> str:
-        normalised_v = v.strip().lower()
-        topic = TOPIC_ALIASES.get(normalised_v, normalised_v)
-        if topic not in SUPPORTED_TOPICS:
-            raise ValueError(
-                f"Unsupported cancer_type {v!r}. Must be one of {SUPPORTED_TOPICS} "
-                f"(or an alias: {sorted(TOPIC_ALIASES)})."
-            )
-        return topic
+        return normalise_topic(v)
 
 
 class TreatmentWarningOut(BaseModel):

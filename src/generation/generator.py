@@ -4,12 +4,12 @@ LLM call logic with provider abstraction and citation verification.
 
 from __future__ import annotations
 
-import re
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from config.constants import MAX_ANSWER_TOKENS
+from src.generation.citations import DOC_TAG_RE, strip_invalid_citations
 from src.generation.confidence import ConfidenceGate, compute_confidence, gate
 from src.generation.post_process import apply_regulatory_warnings
 from src.generation.prompts import (
@@ -23,8 +23,6 @@ from src.generation.prompts import (
 if TYPE_CHECKING:
     from src.generation.llm_client import LLMClient
     from src.retrieval.reranker import RankedChunk
-
-_CITATION_RE = re.compile(r"\[Doc (\d+)\]")
 
 
 @dataclass
@@ -111,7 +109,7 @@ class ClinicalGenerator:
             )
 
         citations = sorted(
-            {int(m) for m in _CITATION_RE.findall(answer)} - set(hallucinated)
+            {int(m) for m in DOC_TAG_RE.findall(answer)} - set(hallucinated)
         )
 
         answer = apply_regulatory_warnings(answer)
@@ -132,17 +130,4 @@ class ClinicalGenerator:
     @staticmethod
     def _check_citations(answer: str, num_docs: int) -> tuple[str, list[int]]:
         """Strip citations referencing non-existent docs; return (cleaned_answer, hallucinated_list)."""
-        hallucinated: list[int] = []
-        for m in _CITATION_RE.finditer(answer):
-            n = int(m.group(1))
-            if n < 1 or n > num_docs:
-                if n not in hallucinated:
-                    hallucinated.append(n)
-
-        if not hallucinated:
-            return answer, []
-
-        cleaned = answer
-        for n in sorted(hallucinated):
-            cleaned = cleaned.replace(f"[Doc {n}]", "")
-        return cleaned, sorted(hallucinated)
+        return strip_invalid_citations(answer, num_docs)
