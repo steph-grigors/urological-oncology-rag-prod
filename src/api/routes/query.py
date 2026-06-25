@@ -8,15 +8,17 @@ import asyncio
 import json
 import time
 import uuid
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
-from config.constants import SUPPORTED_TOPICS, TOPIC_ALIASES
+from config.constants import normalise_topic
 from src.api.middleware.auth import require_api_key
 from src.generation.confidence import gate
+from src.generation.source_card import chunk_to_source_detail
 from src.observability.logging import get_logger, query_id_var
 
 if TYPE_CHECKING:
@@ -50,17 +52,7 @@ class QueryRequest(BaseModel):
     @field_validator("cancer_types")
     @classmethod
     def normalise_cancer_types(cls, v: list[str]) -> list[str]:
-        normalised: list[str] = []
-        for raw in v:
-            normalised_raw = raw.strip().lower()
-            topic = TOPIC_ALIASES.get(normalised_raw, normalised_raw)
-            if topic not in SUPPORTED_TOPICS:
-                raise ValueError(
-                    f"Unsupported cancer_type {raw!r}. Must be one of {SUPPORTED_TOPICS} "
-                    f"(or an alias: {sorted(TOPIC_ALIASES)})."
-                )
-            normalised.append(topic)
-        return normalised
+        return [normalise_topic(raw) for raw in v]
 
     @field_validator("study_designs", mode="before")
     @classmethod
@@ -243,28 +235,7 @@ async def query_endpoint(
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _to_source_card(chunk) -> SourceCard:
-    meta = chunk.metadata if hasattr(chunk, "metadata") else {}
-    authors_raw = meta.get("authors", [])
-    if isinstance(authors_raw, list):
-        authors_str = ", ".join(str(a) for a in authors_raw[:3])
-        if len(authors_raw) > 3:
-            authors_str += " et al."
-    else:
-        authors_str = str(authors_raw) if authors_raw else ""
-
-    text = chunk.text if hasattr(chunk, "text") else ""
-    return SourceCard(
-        chunk_id=chunk.chunk_id if hasattr(chunk, "chunk_id") else "",
-        title=meta.get("title") or "Unknown",
-        authors=authors_str,
-        journal=meta.get("journal") or "",
-        year=meta.get("year"),
-        study_design=meta.get("study_design") or "",
-        sample_size=meta.get("sample_size"),
-        section=meta.get("section") or "",
-        key_finding=text[:150],
-        pmid=meta.get("pmid") or "",
-    )
+    return SourceCard(**asdict(chunk_to_source_detail(chunk)))
 
 
 def _sse_response(body: QueryResponse) -> StreamingResponse:

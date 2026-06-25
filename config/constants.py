@@ -28,6 +28,21 @@ TOPIC_ALIASES: Final[dict[str, str]] = {
     "acc": "adrenal",
 }
 
+
+def normalise_topic(raw: str) -> str:
+    """Strip/lowercase/alias-resolve a cancer-type string, raising ValueError
+    if it doesn't resolve to a SUPPORTED_TOPICS entry. Shared by the
+    cancer_type/cancer_types Pydantic validators in
+    src/api/routes/query.py and src/api/routes/treatment_card.py."""
+    normalised_raw = raw.strip().lower()
+    topic = TOPIC_ALIASES.get(normalised_raw, normalised_raw)
+    if topic not in SUPPORTED_TOPICS:
+        raise ValueError(
+            f"Unsupported cancer_type {raw!r}. Must be one of {SUPPORTED_TOPICS} "
+            f"(or an alias: {sorted(TOPIC_ALIASES)})."
+        )
+    return topic
+
 # ── Study design hierarchy (highest → lowest evidence weight) ────────────────
 # Used by the reranker and confidence gating to boost evidence-grade signals.
 

@@ -47,11 +47,13 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from src.generation.citations import DOC_TAG_RE, strip_invalid_citations
 from src.generation.post_process import _load_withdrawals
+from src.generation.source_card import chunk_to_source_detail, disclosure_source_detail
 
 if TYPE_CHECKING:
     from src.generation.llm_client import LLMClient
@@ -60,8 +62,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-_DOC_TAG_RE = re.compile(r"\s*\[Doc \d+\]", re.IGNORECASE)
-_DOC_TAG_CAPTURE_RE = re.compile(r"\s*\[Doc (\d+)\]", re.IGNORECASE)
 
 CardLanguage = Literal["fr", "en"]
 
@@ -589,16 +589,13 @@ class CardGenerator:
 # ── Module-level helpers ──────────────────────────────────────────────────────
 
 def _strip_doc_tags(text: str) -> str:
-    return _DOC_TAG_RE.sub("", text).strip()
+    return DOC_TAG_RE.sub("", text).strip()
 
 
 def _strip_invalid_doc_tags(text: str, n_chunks: int) -> str:
     """Remove only the [Doc N] tags whose N doesn't point at a real chunk.
     Valid tags (1 <= N <= n_chunks) are left untouched."""
-    def _replace(m: re.Match) -> str:
-        n = int(m.group(1))
-        return m.group(0) if 1 <= n <= n_chunks else ""
-    return _DOC_TAG_CAPTURE_RE.sub(_replace, text).strip()
+    return strip_invalid_citations(text, n_chunks)[0]
 
 
 def _ground_sources(sources_raw: list[str], ranked_chunks: list["RankedChunk"]) -> list[str]:
@@ -610,7 +607,7 @@ def _ground_sources(sources_raw: list[str], ranked_chunks: list["RankedChunk"]) 
     cited: list[int] = []
     seen: set[int] = set()
     for item in sources_raw:
-        for m in _DOC_TAG_CAPTURE_RE.finditer(item):
+        for m in DOC_TAG_RE.finditer(item):
             n = int(m.group(1))
             if 1 <= n <= n_chunks and n not in seen:
                 seen.add(n)
@@ -646,18 +643,7 @@ def _format_grounded_source(chunk: "RankedChunk", n: int) -> str:
 def _disclosure_source_detail(disclosure: str) -> dict:
     """sources_detail entry matching the SourceCard-like shape, for the
     parametric-knowledge-fallback disclosure (no real chunk backs it)."""
-    return {
-        "chunk_id": "",
-        "title": disclosure,
-        "authors": "",
-        "journal": "",
-        "year": None,
-        "study_design": "parametric_knowledge",
-        "sample_size": None,
-        "section": "",
-        "key_finding": "",
-        "pmid": "",
-    }
+    return asdict(disclosure_source_detail(disclosure))
 
 
 def _build_context_block(chunks: list["RankedChunk"], max_chars: int = 8000) -> str:
@@ -696,32 +682,9 @@ def _build_context_block(chunks: list["RankedChunk"], max_chars: int = 8000) -> 
 
 def _build_sources_detail(chunks: list["RankedChunk"]) -> list[dict]:
     """Grounded, database-derived source records — additive alongside the
-    LLM-authored `sources` free-text field. Mirrors /query's SourceCard shape."""
-    detail: list[dict] = []
-    for chunk in chunks:
-        meta = chunk.metadata if hasattr(chunk, "metadata") else {}
-        authors_raw = meta.get("authors", [])
-        if isinstance(authors_raw, list):
-            authors_str = ", ".join(str(a) for a in authors_raw[:3])
-            if len(authors_raw) > 3:
-                authors_str += " et al."
-        else:
-            authors_str = str(authors_raw) if authors_raw else ""
-
-        text = chunk.text if hasattr(chunk, "text") else ""
-        detail.append({
-            "chunk_id": getattr(chunk, "chunk_id", ""),
-            "title": meta.get("title") or "Unknown",
-            "authors": authors_str,
-            "journal": meta.get("journal") or "",
-            "year": meta.get("year"),
-            "study_design": meta.get("study_design") or "",
-            "sample_size": meta.get("sample_size"),
-            "section": meta.get("section") or "",
-            "key_finding": text[:150],
-            "pmid": meta.get("pmid") or "",
-        })
-    return detail
+    LLM-authored `sources` free-text field. Uses the same SourceDetail shape
+    as /query's SourceCard (src/generation/source_card.py)."""
+    return [asdict(chunk_to_source_detail(c)) for c in chunks]
 
 
 def _format_comorbidities(comorbidities: dict, no_comorbidities_label: str = "Aucune comorbidité précisée") -> str:
