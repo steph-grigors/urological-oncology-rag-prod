@@ -80,6 +80,17 @@ class LatencyBreakdown(BaseModel):
     total: int
 
 
+class QueryQualityScores(BaseModel):
+    """Heuristic JudgeSet scores for this answer, computed synchronously
+    (no LLM calls -- see src/evaluation/judges.py's heuristic path) so
+    every /query response can carry live quality metrics without the
+    latency or cost of an LLM-judge call."""
+
+    faithfulness: float
+    answer_relevance: float
+    context_precision: float
+
+
 class QueryResponse(BaseModel):
     answer: str
     evidence_quality: str
@@ -88,6 +99,7 @@ class QueryResponse(BaseModel):
     conversation_id: str
     request_id: str
     latency_ms: LatencyBreakdown
+    quality: QueryQualityScores | None = None
 
 
 # ── Dependency accessors ──────────────────────────────────────────────────────
@@ -211,6 +223,24 @@ async def query_endpoint(
     # ── Build source cards ────────────────────────────────────────────────
     sources = [_to_source_card(c) for c in retrieval_result.chunks]
 
+    # ── Quality scores (heuristic, no LLM call -- safe to compute inline) ──
+    quality: QueryQualityScores | None = None
+    try:
+        from src.evaluation.judges import JudgeSet
+
+        judge_scores = JudgeSet().score_all(
+            question=body.query,
+            answer=gen_result.answer,
+            chunks=retrieval_result.chunks,
+        )
+        quality = QueryQualityScores(
+            faithfulness=round(judge_scores.faithfulness, 4),
+            answer_relevance=round(judge_scores.answer_relevance, 4),
+            context_precision=round(judge_scores.context_precision, 4),
+        )
+    except Exception as exc:
+        logger.warning("Quality scoring failed: %s", exc)
+
     response_body = QueryResponse(
         answer=gen_result.answer,
         evidence_quality=gen_result.evidence_quality,
@@ -224,6 +254,7 @@ async def query_endpoint(
             generation=gen_ms,
             total=total_ms,
         ),
+        quality=quality,
     )
 
     if body.stream:
