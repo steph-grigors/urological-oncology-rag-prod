@@ -58,6 +58,35 @@ def _cached_embed(query: str, model: str, client_id: int) -> tuple[float, ...]:
     raise NotImplementedError  # replaced at runtime by RAGRetriever._embed
 
 
+# ── Retry helper ──────────────────────────────────────────────────────────────
+# Wraps the two external network calls in retrieve() (OpenAI embeddings,
+# Qdrant search) with a short exponential backoff. Catches broadly rather
+# than enumerating each SDK's specific timeout/connection-error classes --
+# a non-retryable error (bad API key, malformed request) just fails the
+# same way after a couple of wasted short sleeps, which is an acceptable
+# tradeoff for not having to track two SDKs' exception hierarchies here.
+# Cohere reranking already has its own fallback (passthrough to RRF order
+# on any failure, see reranker.py) and never raises, so it doesn't need
+# this wrapper.
+
+def _retry_with_backoff(fn, *args, attempts: int = 3, base_delay: float = 0.5, **kwargs):
+    last_exc: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            if attempt < attempts - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(
+                    "%s failed (attempt %d/%d): %s — retrying in %.1fs",
+                    getattr(fn, "__qualname__", repr(fn)), attempt + 1, attempts, exc, delay,
+                )
+                time.sleep(delay)
+    assert last_exc is not None
+    raise last_exc
+
+
 # ── Diversity cap helper ──────────────────────────────────────────────────────
 
 def _apply_diversity_cap(
@@ -171,7 +200,9 @@ class RAGRetriever:
 
         # ── Step 2: dense search (filters applied in Qdrant) ─────────────
         t1 = time.perf_counter()
-        dense_results = self._store.search_dense(query_embedding, k_ret, filters)
+        dense_results = _retry_with_backoff(
+            self._store.search_dense, query_embedding, k_ret, filters
+        )
         timings["dense_ms"] = (time.perf_counter() - t1) * 1000
 
         # ── Step 3: BM25 search (filters applied in-memory) ──────────────
@@ -243,7 +274,8 @@ class RAGRetriever:
         cache_key = (query, self._embedding_model)
         if cache_key in self._embed_cache:
             return self._embed_cache[cache_key]
-        response = self._openai.embeddings.create(
+        response = _retry_with_backoff(
+            self._openai.embeddings.create,
             input=query,
             model=self._embedding_model,
         )
