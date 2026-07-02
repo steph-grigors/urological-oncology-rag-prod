@@ -208,7 +208,15 @@ def _build_card_tool(keep_citations: bool) -> dict:
                 },
                 "guideline": {
                     "type": "string",
-                    "description": "Reference guideline (e.g. EAU 2024, NONE).",
+                    "description": (
+                        "State the specific EAU/ESMO/NCCN recommendation that applies to "
+                        "this patient's exact clinical scenario (stage, treatment line, key "
+                        "biomarkers). Do NOT just name the guideline — summarise what it "
+                        "recommends in 1–3 sentences, e.g. "
+                        "'EAU 2024: mCRPC post-docetaxel — test HRR status; olaparib if "
+                        "BRCA1/2-mutated; clinical trial or supportive care otherwise.' "
+                        "Mention the guideline name and year as a prefix."
+                    ),
                 },
                 "comorbidities_impact": {
                     "type": "string",
