@@ -243,7 +243,26 @@ def _build_card_tool(keep_citations: bool) -> dict:
                             "level": {
                                 "type": "string",
                                 "enum": ["A", "B", "C", "Expert opinion"],
-                                "description": "Evidence level.",
+                                "description": (
+                                    "EAU/ESMO guideline recommendation grade for this "
+                                    "treatment in this specific indication:\n"
+                                    "A = guideline-endorsed Grade A recommendation, "
+                                    "backed by systematic review, meta-analysis, or "
+                                    "high-quality RCT (EAU LE 1a/1b). Use A for "
+                                    "treatments explicitly graded A in current EAU/ESMO "
+                                    "guidelines for this scenario (e.g. radical "
+                                    "prostatectomy or active surveillance for localized "
+                                    "intermediate-risk PCa, cisplatin-based NAC for MIBC, "
+                                    "nivolumab adjuvant post-cystectomy for pT3/pN+).\n"
+                                    "B = guideline Grade B, supported by well-conducted "
+                                    "cohort or observational studies (EAU LE 2/3).\n"
+                                    "C = guideline Grade C or expert opinion only "
+                                    "(EAU LE 4), or emerging/off-label options.\n"
+                                    "CRITICAL: assign the grade the guideline gives this "
+                                    "treatment for this indication — NOT the quality of "
+                                    "the retrieved documents, which may be lower-level "
+                                    "than the RCTs the guideline originally cited."
+                                ),
                             },
                         },
                         "required": ["drug", "intent", "level"],
@@ -295,6 +314,13 @@ def _default_card_system(language: CardLanguage, keep_citations: bool) -> str:
             "- Formater les sources ainsi : « Auteur et al. Année Journal (design, n=N) ».\n"
             "- Baser les recommandations exclusivement sur les documents fournis. "
             "Si les preuves sont insuffisantes, indiquer confidence='Insuffisante'.\n"
+            "- Niveau de recommandation (A/B/C) : attribuer le grade EAU/ESMO que la "
+            "recommandation reçoit pour cette indication spécifique — PAS le niveau "
+            "méthodologique des documents récupérés. Si les guidelines EAU/ESMO classent "
+            "un traitement en Grade A pour ce scénario clinique (ex. prostatectomie radicale "
+            "ou surveillance active pour cancer de prostate localisé risque intermédiaire, "
+            "nivolumab adjuvant post-cystectomie pT3/N+), attribuer A même si les extraits "
+            "fournis sont des études de cohorte de niveau inférieur.\n"
             "- Le contenu médical doit être précis, concis et adapté à un usage clinique."
         )
 
@@ -319,6 +345,12 @@ def _default_card_system(language: CardLanguage, keep_citations: bool) -> str:
         "- Format sources as: 'Author et al. Year Journal (design, n=N)'.\n"
         "- Base recommendations only on the provided documents. "
         "If evidence is insufficient, set confidence='Insufficient'.\n"
+        "- Evidence level (A/B/C): assign the EAU/ESMO guideline grade for this treatment "
+        "in this specific indication — NOT the methodological quality of the retrieved "
+        "documents. If EAU/ESMO grades a treatment A for this clinical scenario (e.g. "
+        "radical prostatectomy or active surveillance for intermediate-risk localised PCa, "
+        "adjuvant nivolumab post-cystectomy pT3/N+), assign A even if the retrieved "
+        "excerpts are cohort studies of lower methodological level.\n"
         "- Medical content must be precise, concise, and appropriate for clinical use."
     )
 
