@@ -48,12 +48,13 @@ class TreatmentCardRequest(BaseModel):
         ),
     )
     keep_citations: bool = Field(
-        default=False,
+        default=True,
         description=(
             "If true, treatment[].drug may carry a range-validated [Doc N] tag, "
             "and `sources` is regenerated from real chunk metadata for every "
-            "[Doc N] the model referenced. Default false strips all [Doc N] tags "
-            "everywhere, matching pre-existing behaviour."
+            "[Doc N] the model referenced — hallucination-free by construction. "
+            "Default true. Set to false only to replicate pre-existing behaviour "
+            "(LLM writes free-text sources, which may hallucinate author/journal)."
         ),
     )
     disclose_fallback: bool = Field(
