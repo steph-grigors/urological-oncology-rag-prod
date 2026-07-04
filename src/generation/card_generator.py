@@ -715,8 +715,34 @@ def _build_context_block(chunks: list["RankedChunk"], max_chars: int = 8000) -> 
 def _build_sources_detail(chunks: list["RankedChunk"]) -> list[dict]:
     """Grounded, database-derived source records — additive alongside the
     LLM-authored `sources` free-text field. Uses the same SourceDetail shape
-    as /query's SourceCard (src/generation/source_card.py)."""
-    return [asdict(chunk_to_source_detail(c)) for c in chunks]
+    as /query's SourceCard (src/generation/source_card.py).
+
+    Deduplicates by paper: when multiple chunks from the same paper appear in
+    the top-k (common when a relevant paper has many section-level chunks), a
+    single entry is emitted using the highest-ranked chunk's metadata.
+    `sections_used` records how many chunks from that paper were retrieved, so
+    callers can surface "3 sections used" without losing that information.
+    """
+    seen: dict[str, "SourceDetail"] = {}  # paper_key → first (highest-ranked) detail
+    counts: dict[str, int] = {}
+
+    for chunk in chunks:
+        detail = chunk_to_source_detail(chunk)
+        meta = chunk.metadata if hasattr(chunk, "metadata") else {}
+        pmid = meta.get("pmid") or ""
+        paper_key = pmid if pmid else f"{detail.title}||{detail.year}"
+
+        if paper_key not in seen:
+            seen[paper_key] = detail
+            counts[paper_key] = 1
+        else:
+            counts[paper_key] += 1
+
+    result = []
+    for key, detail in seen.items():
+        detail.sections_used = counts[key]
+        result.append(asdict(detail))
+    return result
 
 
 def _format_comorbidities(comorbidities: dict, no_comorbidities_label: str = "Aucune comorbidité précisée") -> str:

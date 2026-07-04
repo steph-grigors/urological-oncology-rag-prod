@@ -29,6 +29,7 @@ class SourceDetail:
     section: str
     key_finding: str
     pmid: str
+    sections_used: int = 1
 
 
 def chunk_to_source_detail(chunk: "RankedChunk") -> SourceDetail:
