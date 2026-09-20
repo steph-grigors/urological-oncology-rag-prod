@@ -4,6 +4,7 @@ API key authentication — FastAPI Depends function.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 
 from fastapi import Depends, HTTPException, Request
@@ -65,3 +66,21 @@ async def require_admin_api_key(
         return key
 
     raise HTTPException(status_code=403, detail="Admin access required")
+
+
+def api_key_fingerprint(api_key: str) -> str | None:
+    """Return a stable, non-reversible identifier for an API key.
+
+    The audit log needs to attribute a query to a caller, but storing the key
+    itself turns `audit_log.user_id` into a credential store: anyone who can
+    read that table can then call the API as that caller. A truncated SHA-256
+    keeps both attribution and grouping -- the same key always maps to the same
+    fingerprint, so "which caller ran this query" and "all queries by caller X"
+    still work -- without the stored value being usable to authenticate.
+
+    Returns None for the unauthenticated and development sentinels, matching
+    the previous behaviour of writing NULL for those.
+    """
+    if api_key in ("", "dev"):
+        return None
+    return f"k_{hashlib.sha256(api_key.encode('utf-8')).hexdigest()[:16]}"

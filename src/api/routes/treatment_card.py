@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
-from src.api.middleware.auth import require_api_key
+from src.api.middleware.auth import api_key_fingerprint, require_api_key
 from src.observability.logging import get_logger, query_id_var
 from config.constants import CONFIDENCE_REFUSE, normalise_topic
 
@@ -207,7 +207,7 @@ async def treatment_card_endpoint(
                 card_result=card_result,
                 model=getattr(card_generator, "model", ""),
                 provider=getattr(card_generator, "provider", ""),
-                user_id=_api_key if _api_key not in ("", "dev") else None,
+                user_id=api_key_fingerprint(_api_key),
                 session_id=body.conversation_id,
             )
         except Exception as exc:

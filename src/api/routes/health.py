@@ -10,8 +10,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 
 from src.api.middleware.auth import require_api_key
+from src.observability.logging import get_logger
 
 router = APIRouter(prefix="/health", tags=["health"])
+logger = get_logger(__name__)
 
 _startup_time = time.time()
 
@@ -33,8 +35,12 @@ async def health_check(request: Request) -> Any:
         try:
             retriever._store.collection_stats()
             checks["qdrant"] = "ok"
-        except Exception as exc:
-            checks["qdrant"] = f"error: {exc}"
+        except Exception:
+            # Detail goes to the log, not the response: these probes are
+            # unauthenticated, and a driver exception routinely embeds the
+            # host, port, database name or credentials from the DSN.
+            logger.warning("Qdrant health check failed", exc_info=True)
+            checks["qdrant"] = "error"
             ok = False
     else:
         checks["qdrant"] = "not_configured"
@@ -46,8 +52,9 @@ async def health_check(request: Request) -> Any:
             with audit_logger.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             checks["postgres"] = "ok"
-        except Exception as exc:
-            checks["postgres"] = f"error: {exc}"
+        except Exception:
+            logger.warning("Postgres health check failed", exc_info=True)
+            checks["postgres"] = "error"
             ok = False
     else:
         checks["postgres"] = "not_configured"
@@ -87,8 +94,12 @@ async def readiness(request: Request) -> dict[str, Any]:
         try:
             retriever._store.collection_stats()
             checks["qdrant"] = "ok"
-        except Exception as exc:
-            checks["qdrant"] = f"error: {exc}"
+        except Exception:
+            # Detail goes to the log, not the response: these probes are
+            # unauthenticated, and a driver exception routinely embeds the
+            # host, port, database name or credentials from the DSN.
+            logger.warning("Qdrant health check failed", exc_info=True)
+            checks["qdrant"] = "error"
             ok = False
     else:
         checks["qdrant"] = "not_configured"
@@ -101,8 +112,9 @@ async def readiness(request: Request) -> dict[str, Any]:
             with audit_logger.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             checks["postgres"] = "ok"
-        except Exception as exc:
-            checks["postgres"] = f"error: {exc}"
+        except Exception:
+            logger.warning("Postgres health check failed", exc_info=True)
+            checks["postgres"] = "error"
             ok = False
     else:
         checks["postgres"] = "not_configured"
