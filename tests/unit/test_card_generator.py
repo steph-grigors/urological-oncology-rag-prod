@@ -765,10 +765,28 @@ class TestDiscloseFallback:
                 **kwargs,
             )
 
-    def test_default_does_not_touch_retrieval_metadata_shape(self):
-        result = self._run([])  # disclose_fallback defaults to False
-        assert "grounded" not in result.retrieval_metadata
-        # sources stay whatever the LLM happened to write — no override
+    def test_grounded_is_always_reported(self):
+        """Superseded test_default_does_not_touch_retrieval_metadata_shape,
+        which asserted `"grounded" not in retrieval_metadata` when the caller
+        did not opt in. Whether a card rests on retrieved literature or on the
+        model's own knowledge is a property of the card, not of what the
+        caller asked to be told, so it is now reported unconditionally."""
+        assert self._run([]).retrieval_metadata["grounded"] is False
+        assert self._run([_make_chunk()]).retrieval_metadata["grounded"] is True
+
+    def test_disclosure_is_on_by_default(self):
+        """With no chunks, `sources` must not be left as whatever the model
+        wrote from memory."""
+        result = self._run([], language="en")
+        assert len(result.sources) == 1
+        assert "No relevant literature" in result.sources[0]
+        assert result.sources != ["Fizazi et al. 2017 NEJM (RCT, n=1199)"]
+
+    def test_disclosure_can_still_be_switched_off(self):
+        """The escape hatch for a caller that needs the older, quieter shape.
+        `grounded` is still reported -- only the human-readable half changes."""
+        result = self._run([], disclose_fallback=False)
+        assert result.retrieval_metadata["grounded"] is False
         assert result.sources == ["Fizazi et al. 2017 NEJM (RCT, n=1199)"]
 
     def test_disclose_fallback_replaces_sources_when_no_chunks(self):

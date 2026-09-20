@@ -58,12 +58,16 @@ class TreatmentCardRequest(BaseModel):
         ),
     )
     disclose_fallback: bool = Field(
-        default=False,
+        default=True,
         description=(
-            "If true, replaces `sources`/`sources_detail` with an explicit "
-            "disclosure and sets retrieval_metadata['grounded']=false when no "
-            "chunks were retrieved. Default false leaves retrieval_metadata's "
-            "shape unchanged, matching pre-existing behaviour."
+            "When no chunks were retrieved, the card is generated from the "
+            "model's own clinical knowledge rather than from the indexed "
+            "literature. That is intended behaviour, but such a card looks "
+            "identical to a grounded one. If true (the default), `sources` and "
+            "`sources_detail` are replaced with an explicit disclosure instead "
+            "of being left empty. Set to false only to reproduce the older, "
+            "quieter behaviour. Note that retrieval_metadata['grounded'] is "
+            "reported either way and does not depend on this flag."
         ),
     )
 

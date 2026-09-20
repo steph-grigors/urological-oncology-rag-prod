@@ -20,9 +20,8 @@ Language:
   always one of the language-neutral codes "A"/"B"/"C"/"Expert opinion" enforced
   by the tool schema.
 
-Citations (`keep_citations`, default False):
-  By default every field is stripped of `[Doc N]` tags (today's behaviour, kept
-  for callers like onco-review-app that never set this). When True:
+Citations (`keep_citations`, default True):
+  When True:
     - `treatment[].drug` may keep a `[Doc N]` tag, but any tag whose N doesn't
       correspond to an actually-retrieved chunk is removed (range-validated,
       same principle as /query's hallucinated-citation check). The drug/dosage
@@ -33,11 +32,16 @@ Citations (`keep_citations`, default False):
       from real chunk metadata (same data `sources_detail` uses) — this field is
       hallucination-free by construction, not just hallucination-checked.
 
-Fallback disclosure (`disclose_fallback`, default False):
-  When True and no chunks were retrieved (parametric-knowledge fallback), both
-  `sources` and `sources_detail` are replaced with an explicit disclosure entry
-  and `retrieval_metadata["grounded"] = False` is set. Default False so this
-  doesn't change onco-review-app's `retrieval_metadata` shape.
+Fallback disclosure (`disclose_fallback`, default True):
+  `retrieval_metadata["grounded"]` is ALWAYS reported, regardless of this flag:
+  whether a card rests on retrieved literature or on the model's own knowledge
+  is a property of the card, not of what the caller asked to be told.
+
+  This flag controls only the human-readable half. When True and no chunks were
+  retrieved, `sources` and `sources_detail` are replaced with an explicit
+  disclosure entry instead of being left empty, so a reader cannot mistake an
+  ungrounded card for a grounded one. Set it to False only to reproduce the
+  older, quieter behaviour.
 """
 
 from __future__ import annotations
@@ -421,7 +425,7 @@ class CardGenerator:
         system_prompt: str | None = None,
         language: CardLanguage = "fr",
         keep_citations: bool = False,
-        disclose_fallback: bool = False,
+        disclose_fallback: bool = True,
     ) -> TreatmentCardResult:
         """Full card generation pipeline from patient data + retrieved chunks.
 
@@ -536,22 +540,31 @@ class CardGenerator:
         # Additive — does not replace the free-text `sources` field above.
         sources_detail = _build_sources_detail(ranked_chunks)
 
+        # `grounded` is reported unconditionally. Whether a card was built from
+        # retrieved literature or from the model's own knowledge is a property
+        # of the card, not of what the caller asked to be told, so it must not
+        # depend on an opt-in flag. It is purely additive to the dict, so a
+        # caller that ignores it sees no change.
+        grounded = n_chunks > 0
         retrieval_metadata = {
             "chunks_used": n_chunks,
             "confidence_score": round(confidence_score, 4),
             "corpus_version": corpus_version,
             "sources_detail": sources_detail,
+            "grounded": grounded,
         }
 
-        # ── Step 9: fallback disclosure (opt-in, doesn't touch the shape of
-        # retrieval_metadata for callers that never set disclose_fallback) ──
-        if disclose_fallback:
-            grounded = n_chunks > 0
-            retrieval_metadata["grounded"] = grounded
-            if not grounded:
-                disclosure = _FALLBACK_DISCLOSURE.get(language, _FALLBACK_DISCLOSURE["fr"])
-                sources = [disclosure]
-                retrieval_metadata["sources_detail"] = [_disclosure_source_detail(disclosure)]
+        # ── Step 9: fallback disclosure ───────────────────────────────────
+        # Falling back to the model's own knowledge when retrieval finds
+        # nothing is intended behaviour. What must not happen is that such a
+        # card is indistinguishable from a grounded one: the structure, the
+        # confidence wording and the treatment table all look identical.
+        # Replacing the empty `sources` with an explicit disclosure is what
+        # makes the difference visible to whoever reads the card.
+        if disclose_fallback and not grounded:
+            disclosure = _FALLBACK_DISCLOSURE.get(language, _FALLBACK_DISCLOSURE["fr"])
+            sources = [disclosure]
+            retrieval_metadata["sources_detail"] = [_disclosure_source_detail(disclosure)]
 
         latency_ms = (time.monotonic() - t_start) * 1000
         return TreatmentCardResult(
