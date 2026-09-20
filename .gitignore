@@ -28,6 +28,10 @@ venv/
 # Streamlit
 .streamlit/secrets.toml
 
+# Coverage
+.coverage
+htmlcov/
+
 # Logs
 *.log
 
