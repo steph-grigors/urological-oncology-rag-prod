@@ -12,3 +12,6 @@ pytest>=8.0.0            # test runner — the CI jobs invoke `pytest` directly
 pytest-mock>=3.14.0      # provides the `mocker` fixture (tests/unit/test_confidence_gating.py)
 httpx>=0.27.0            # required by fastapi.testclient.TestClient (integration tests)
 coverage>=7.0.0          # local coverage runs: coverage run -m pytest && coverage report
+pyyaml>=6.0              # tests/unit/test_deploy_jobs.py parses docker-compose.yml.
+                         # Present transitively today, declared here so a
+                         # dependency change upstream cannot silently remove it.

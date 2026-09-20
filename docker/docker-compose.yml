@@ -136,12 +136,16 @@ services:
         python scripts/update_regulatory_db.py
 
       # ── Step 2 (02:00 UTC): incremental paper ingestion ───────────────────────
+      # --since-days rather than --since-date $(date ...): ofelia runs a job's
+      # command directly, not through a shell, so the command substitution was
+      # never evaluated and the flag received the literal string. The pipeline
+      # now resolves the window itself.
       ofelia.job-run.weekly-ingestion.schedule: "0 2 * * 0"   # Sunday 02:00 UTC
       ofelia.job-run.weekly-ingestion.container: "uro-rag-api"
       ofelia.job-run.weekly-ingestion.command: >
         python -m src.ingestion.pipeline
         --mode incremental
-        --since-date $(date -d '7 days ago' +%Y/%m/%d)
+        --since-days 7
         --limit 2000
 
       # ── Step 3 (08:00 UTC): restart API to reload BM25 cache + new reg. data ──

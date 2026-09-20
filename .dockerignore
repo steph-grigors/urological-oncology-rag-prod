@@ -1,3 +1,49 @@
+# Build context exclusions.
+#
+# The context is the repository root (docker-compose sets context: ..), so
+# anything not listed here is uploaded to the Docker daemon on every build.
+# Before this file was expanded, that included the 5.1 GB Qdrant snapshot and
+# both .env files.
+#
+# Nothing excluded here is referenced by a COPY in docker/Dockerfile. The two
+# paths the Dockerfile does need from outside config/ and src/ are scripts/
+# and tests/fixtures/golden_queries.json, so tests/ is deliberately NOT
+# excluded wholesale.
+
 .git
 .gitignore
 README.md
+
+# Secrets — never belong in a build context, COPYed or not
+.env
+.env.*
+!.env.example
+docker/.env
+
+# Large artefacts
+*.snapshot
+data/
+notebooks/
+rag_info/
+
+# Local environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Claude Code workspace
+.claude/

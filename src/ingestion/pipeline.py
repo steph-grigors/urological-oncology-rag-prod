@@ -366,6 +366,23 @@ def _save_rejected(path: str, records: list) -> None:
     p.write_text(json.dumps(records, indent=2))
 
 
+def _since_date_from_days(days: int | None) -> str | None:
+    """Return a PubMed-style YYYY/MM/DD date `days` days ago, or None.
+
+    Exists so the weekly cron job can say `--since-days 7` instead of
+    `--since-date $(date -d '7 days ago' +%Y/%m/%d)`. ofelia runs a job's
+    command directly rather than through a shell, so that substitution was
+    never evaluated and the flag received the literal text.
+
+    A non-positive value is treated as no restriction, matching the behaviour
+    of omitting the flag entirely.
+    """
+    if not days or days <= 0:
+        return None
+    cutoff = datetime.date.today() - datetime.timedelta(days=days)
+    return cutoff.strftime("%Y/%m/%d")
+
+
 def _write_progress(path: str, data: dict) -> None:
     """Write progress snapshot; silently ignores I/O errors to never block the pipeline."""
     try:
@@ -388,6 +405,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--mode", choices=["full", "incremental"], default="incremental")
     p.add_argument("--cancer-types", nargs="+", choices=SUPPORTED_TOPICS, dest="cancer_types")
     p.add_argument("--since-date", help="Only ingest papers published on or after YYYY/MM/DD", dest="since_date")
+    p.add_argument(
+        "--since-days",
+        type=int,
+        dest="since_days",
+        help=(
+            "Only ingest papers published in the last N days. Resolved here rather "
+            "than by the caller, so a scheduler that runs the command without a "
+            "shell (e.g. ofelia) cannot silently pass an unevaluated $(date ...) "
+            "substitution. Ignored when --since-date is given."
+        ),
+    )
     p.add_argument("--dry-run", action="store_true", dest="dry_run")
     p.add_argument("--limit", type=int, default=300)
     p.add_argument("--checkpoint", default=_DEFAULT_CHECKPOINT)
@@ -414,8 +442,10 @@ def _main() -> None:
     args = _build_parser().parse_args()
 
     date_range = None
-    if args.since_date:
-        date_range = (args.since_date, "3000/01/01")
+    since_date = args.since_date or _since_date_from_days(args.since_days)
+    if since_date:
+        date_range = (since_date, "3000/01/01")
+        logger.info("Ingesting papers published on or after %s", since_date)
 
     openai_client = None
     qdrant_client = None

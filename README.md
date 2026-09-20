@@ -44,8 +44,12 @@ Query path:
 ### Prerequisites
 
 - Docker ≥ 24 and Docker Compose ≥ 2.20
-- OpenAI API key (embeddings)
-- Anthropic API key (generation)
+- OpenAI API key (embeddings — required)
+- Anthropic API key (generation — required)
+- Cohere API key (cross-encoder reranking — optional; retrieval falls back to
+  reciprocal-rank-fusion order without it)
+- Python 3.11 only if you want to run the ingestion pipeline or the test suite
+  outside Docker
 
 ### 1. Clone and configure
 
@@ -56,6 +60,13 @@ cd urological-oncology-rag-prod
 cp docker/.env.example docker/.env
 # Edit docker/.env — fill in OPENAI_API_KEY and ANTHROPIC_API_KEY at minimum
 ```
+
+`docker/.env.example` lists every variable the application reads, with safe
+defaults filled in and every credential left blank. `docker/.env` itself is
+gitignored and never committed.
+
+Before exposing the stack beyond localhost, change the Postgres credentials in
+both `docker/.env` and `docker/docker-compose.yml`; they default to `rag:rag`.
 
 ### 2. Start services
 
@@ -89,6 +100,20 @@ curl -X POST http://localhost:8000/query \
 ```
 
 Open the Streamlit UI at **http://localhost:8501**.
+
+### 5. Run the tests
+
+The test suite needs no API keys, no network and no running services: external
+clients are mocked and Qdrant runs in memory.
+
+```bash
+pip install -r requirements-dev.txt   # installs requirements.txt too
+pytest                                # unit + integration + eval
+pytest tests/unit                     # unit only
+```
+
+`requirements-dev.txt` is separate from `requirements.txt` so the runtime image
+carries no test dependencies.
 
 ---
 
