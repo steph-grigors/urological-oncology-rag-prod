@@ -16,7 +16,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from config.constants import normalise_topic
-from src.api.middleware.auth import require_api_key
+from src.api.middleware.auth import api_key_fingerprint, require_api_key
 from src.generation.confidence import gate
 from src.generation.source_card import chunk_to_source_detail
 from src.observability.logging import get_logger, query_id_var
@@ -163,8 +163,14 @@ async def query_endpoint(
         logger.error("Retrieval failed: %s", exc)
         raise HTTPException(status_code=503, detail="Retrieval service unavailable")
 
-    retr_ms = int(sum(retrieval_result.latency_ms.values()))
-    rerank_ms = int(retrieval_result.latency_ms.get("rerank_ms", 0))
+    # `retrieval_result.latency_ms` holds overlapping spans: "total_ms" already
+    # covers embed + dense + bm25 + rerank + any web fallback, so summing every
+    # value double-counted each phase and then added the total on top again.
+    # Report the two phases the client actually distinguishes: everything the
+    # retriever did except reranking, and reranking on its own.
+    timings = retrieval_result.latency_ms
+    rerank_ms = int(timings.get("rerank_ms", 0))
+    retr_ms = max(0, int(timings.get("total_ms", 0)) - rerank_ms)
 
     # ── Conversation history fetch ─────────────────────────────────────────
     conversation_history: list[dict] | None = None
@@ -204,7 +210,7 @@ async def query_endpoint(
                 retrieval_result=retrieval_result,
                 confidence=gen_result.confidence_score,
                 gate=confidence_gate,
-                user_id=_api_key if _api_key not in ("", "dev") else None,
+                user_id=api_key_fingerprint(_api_key),
                 session_id=body.conversation_id,
             )
         except Exception as exc:
