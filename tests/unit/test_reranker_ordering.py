@@ -162,9 +162,20 @@ class TestSortPreservesEverythingElse:
 # ── Corpus reality check ─────────────────────────────────────────────────────
 
 class TestUniformMetadataIsStillOrdered:
-    """The production corpus currently carries study_design "unknown" for
-    essentially every chunk, so the design weight is a constant. Recency still
-    varies, and the sort must still hold."""
+    """Roughly 43% of the production corpus carries study_design "unknown"
+    (measured 2026-09-20 over an 18,000-point sample of the live collection),
+    so a meaningful share of any result set has a constant design weight.
+    Recency still varies across those chunks, and the sort must still hold.
+
+    An earlier version of this docstring said "essentially every chunk" was
+    unknown. That was inferred from the one-shot ChromaDB migration script,
+    which hardcoded study_design "unknown", and from a local metadata cache
+    holding only 97 entries. Both were misleading: the cache is an
+    optimisation, not the source of truth, and the values reach Qdrant
+    whether or not the cache write survives. The live distribution is
+    unknown 43.3%, cohort 36.0%, review 8.6%, rct 5.3%, meta_analysis 4.7%,
+    case_report 2.2% -- so the design weight this sort enables does real work
+    on the majority of chunks."""
 
     def test_ordering_holds_when_design_is_uniformly_unknown(self):
         chunks = [
