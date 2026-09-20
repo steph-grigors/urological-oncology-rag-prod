@@ -837,13 +837,13 @@ def display_performance_tab() -> None:
     m1, m2, m3, m4 = st.columns(4)
     with m1:
         delta_color = "normal" if overall >= 0.8 else "inverse"
-        st.metric("Overall", f"{overall:.0%}")
+        st.metric("Mean of the three", f"{overall:.0%}")
     with m2:
-        st.metric("Faithfulness", f"{metrics['faithfulness']:.0%}")
+        st.metric("Citation validity", f"{metrics['faithfulness']:.0%}")
     with m3:
-        st.metric("Relevance", f"{metrics['relevance']:.0%}")
+        st.metric("Query-term coverage", f"{metrics['relevance']:.0%}")
     with m4:
-        st.metric("Context Precision", f"{metrics['precision']:.0%}")
+        st.metric("Retrieval topicality", f"{metrics['precision']:.0%}")
 
     st.divider()
     col_bars, col_explain = st.columns([2, 3], gap="large")
@@ -851,34 +851,45 @@ def display_performance_tab() -> None:
     with col_bars:
         st.markdown("#### Score breakdown")
         for label, val in [
-            ("Faithfulness", metrics["faithfulness"]),
-            ("Relevance",    metrics["relevance"]),
-            ("Context Precision", metrics["precision"]),
+            ("Citation validity", metrics["faithfulness"]),
+            ("Query-term coverage", metrics["relevance"]),
+            ("Retrieval topicality", metrics["precision"]),
         ]:
             st.markdown(f"**{label}** — {val:.0%}")
             st.progress(val)
 
     with col_explain:
         st.markdown("#### What these scores mean")
-        with st.expander("**Faithfulness** — Is the answer grounded in sources?", expanded=True):
+        st.warning(
+            "These are structural checks, not a measure of clinical accuracy. "
+            "They are computed by string and pattern matching, with no model "
+            "call and no reading of the medical content. A high score means "
+            "the answer is well-formed, not that it is correct.",
+            icon="⚠️",
+        )
+        with st.expander("**Citation validity** — do the citations point at real sources?", expanded=True):
             st.caption(
-                "Measures whether every factual claim in the answer is traceable to a [Doc N] citation. "
-                "Penalises unsupported clinical directives, missing citations, and numeric claims not present in any retrieved chunk."
+                "The share of [Doc N] tags whose N refers to a document that was actually "
+                "retrieved. It does not check that the cited document supports the claim. "
+                "Invalid tags are stripped before scoring, so this reads 100% whenever the "
+                "answer cites anything and 85% when it cites nothing."
             )
-        with st.expander("**Relevance** — Does the answer address the question?", expanded=True):
+        with st.expander("**Query-term coverage** — does the answer mention what was asked about?", expanded=True):
             st.caption(
-                "Measures keyword overlap between the query and answer, length appropriateness, "
-                "and whether the answer directly responds rather than restating the question."
+                "The share of the question's content words that appear anywhere in the answer. "
+                "Restating the question scores well here, so read it as a check that the answer "
+                "is on subject, not that it is responsive."
             )
-        with st.expander("**Context Precision** — Are the retrieved sources on-topic?", expanded=True):
+        with st.expander("**Retrieval topicality** — did retrieval land on the right subject?", expanded=True):
             st.caption(
-                "Evaluates keyword overlap between retrieved chunks and the query, source diversity "
-                "(multiple independent papers > single source), and section relevance (Results/Conclusion > Methods)."
+                "The share of retrieved passages containing at least one of the question's "
+                "content words. It does not weigh source diversity, study design or which "
+                "section of a paper a passage came from."
             )
 
     if len(history) >= 1:
         st.divider()
-        st.markdown("#### Overall quality score over this session")
+        st.markdown("#### Mean structural score over this session")
         x_labels = [f"Q{i}" for i in range(1, len(history) + 1)]
         overall_scores = [
             (h["faithfulness"] + h["relevance"] + h["precision"]) / 3 * 100
