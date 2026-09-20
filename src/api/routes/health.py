@@ -18,6 +18,53 @@ logger = get_logger(__name__)
 _startup_time = time.time()
 
 
+def _check_qdrant(retriever) -> tuple[str, bool]:
+    """Return (status, ok) for the vector store.
+
+    A reachable-but-empty collection is reported as a failure rather than as
+    "ok". QdrantStore.ensure_collection creates the collection when it is
+    missing, so a typo in QDRANT_COLLECTION produces a brand-new empty one and
+    every downstream call succeeds: collection_stats() returns cleanly, the
+    probe went green, and the API served an empty corpus. Retrieval would
+    return nothing, every query would fall through to the parametric-knowledge
+    path, and nothing anywhere would say why.
+    """
+    if retriever is None:
+        return "not_configured", True
+    try:
+        stats = retriever._store.collection_stats()
+    except Exception:
+        logger.warning("Qdrant health check failed", exc_info=True)
+        return "error", False
+
+    point_count = stats.get("point_count")
+    if not point_count:
+        logger.error(
+            "Qdrant collection %r is reachable but empty — check QDRANT_COLLECTION",
+            stats.get("collection"),
+        )
+        return "empty", False
+    return "ok", True
+
+
+def _check_postgres(audit_logger) -> tuple[str, bool]:
+    """Return (status, ok) for the audit-log database."""
+    if audit_logger is None:
+        return "not_configured", True
+    try:
+        from sqlalchemy import text
+
+        with audit_logger.engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception:
+        # Detail goes to the log, not the response: these probes are
+        # unauthenticated, and a driver exception routinely embeds the host,
+        # port, database name or credentials from the DSN.
+        logger.warning("Postgres health check failed", exc_info=True)
+        return "error", False
+    return "ok", True
+
+
 @router.get("")
 async def health_check(request: Request) -> Any:
     """Combined health check: Qdrant + Postgres + OpenAI key configured.
@@ -30,34 +77,13 @@ async def health_check(request: Request) -> Any:
     checks: dict[str, str] = {}
     ok = True
 
-    retriever = getattr(request.app.state, "retriever", None)
-    if retriever is not None:
-        try:
-            retriever._store.collection_stats()
-            checks["qdrant"] = "ok"
-        except Exception:
-            # Detail goes to the log, not the response: these probes are
-            # unauthenticated, and a driver exception routinely embeds the
-            # host, port, database name or credentials from the DSN.
-            logger.warning("Qdrant health check failed", exc_info=True)
-            checks["qdrant"] = "error"
-            ok = False
-    else:
-        checks["qdrant"] = "not_configured"
-
-    audit_logger = getattr(request.app.state, "audit_logger", None)
-    if audit_logger is not None:
-        try:
-            from sqlalchemy import text
-            with audit_logger.engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            checks["postgres"] = "ok"
-        except Exception:
-            logger.warning("Postgres health check failed", exc_info=True)
-            checks["postgres"] = "error"
-            ok = False
-    else:
-        checks["postgres"] = "not_configured"
+    checks["qdrant"], qdrant_ok = _check_qdrant(
+        getattr(request.app.state, "retriever", None)
+    )
+    checks["postgres"], postgres_ok = _check_postgres(
+        getattr(request.app.state, "audit_logger", None)
+    )
+    ok = qdrant_ok and postgres_ok
 
     settings = getattr(request.app.state, "settings", None)
     if settings and settings.openai_api_key:
@@ -86,38 +112,14 @@ async def readiness(request: Request) -> dict[str, Any]:
     from fastapi.responses import JSONResponse
 
     checks: dict[str, str] = {}
-    ok = True
 
-    # Qdrant check
-    retriever = getattr(request.app.state, "retriever", None)
-    if retriever is not None:
-        try:
-            retriever._store.collection_stats()
-            checks["qdrant"] = "ok"
-        except Exception:
-            # Detail goes to the log, not the response: these probes are
-            # unauthenticated, and a driver exception routinely embeds the
-            # host, port, database name or credentials from the DSN.
-            logger.warning("Qdrant health check failed", exc_info=True)
-            checks["qdrant"] = "error"
-            ok = False
-    else:
-        checks["qdrant"] = "not_configured"
-
-    # Postgres / AuditLogger check
-    audit_logger = getattr(request.app.state, "audit_logger", None)
-    if audit_logger is not None:
-        try:
-            from sqlalchemy import text
-            with audit_logger.engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            checks["postgres"] = "ok"
-        except Exception:
-            logger.warning("Postgres health check failed", exc_info=True)
-            checks["postgres"] = "error"
-            ok = False
-    else:
-        checks["postgres"] = "not_configured"
+    checks["qdrant"], qdrant_ok = _check_qdrant(
+        getattr(request.app.state, "retriever", None)
+    )
+    checks["postgres"], postgres_ok = _check_postgres(
+        getattr(request.app.state, "audit_logger", None)
+    )
+    ok = qdrant_ok and postgres_ok
 
     status_code = 200 if ok else 503
     return JSONResponse(
