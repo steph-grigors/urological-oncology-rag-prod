@@ -81,14 +81,55 @@ class LatencyBreakdown(BaseModel):
 
 
 class QueryQualityScores(BaseModel):
-    """Heuristic JudgeSet scores for this answer, computed synchronously
-    (no LLM calls -- see src/evaluation/judges.py's heuristic path) so
-    every /query response can carry live quality metrics without the
-    latency or cost of an LLM-judge call."""
+    """Structural checks on this answer, computed without an LLM call.
 
-    faithfulness: float
-    answer_relevance: float
-    context_precision: float
+    These are lexical and structural measures. None of them reads the medical
+    content of the answer or judges whether it is clinically correct, and they
+    must not be presented as if they did. They are cheap guards against
+    specific, mechanical failure modes -- a citation pointing at a document
+    that was never retrieved, an answer that ignores the question's subject,
+    a retrieval set that missed the topic entirely.
+
+    Field names are kept as-is for wire compatibility with existing clients;
+    the descriptions below say what each one actually measures. See
+    src/evaluation/judges.py for the implementations.
+    """
+
+    faithfulness: float = Field(
+        ...,
+        description=(
+            "Citation validity. The fraction of [Doc N] tags in the answer "
+            "whose N points at a chunk that was actually retrieved. It does "
+            "NOT check that the cited chunk supports the claim. Note that "
+            "ClinicalGenerator strips out-of-range tags before this runs, so "
+            "in practice this is 1.0 whenever the answer cites anything, and "
+            "0.85 when it cites nothing at all."
+        ),
+    )
+    answer_relevance: float = Field(
+        ...,
+        description=(
+            "Query-term coverage. The fraction of the question's content words "
+            "that appear anywhere in the answer. Rewards restating the "
+            "question and says nothing about whether the answer is right."
+        ),
+    )
+    context_precision: float = Field(
+        ...,
+        description=(
+            "Retrieved-chunk term overlap. The fraction of retrieved chunks "
+            "containing at least one of the question's content words. A "
+            "topicality check on retrieval, not a relevance judgement."
+        ),
+    )
+    method: str = Field(
+        default="lexical_heuristic",
+        description=(
+            "How these scores were produced. 'lexical_heuristic' means string "
+            "and regex matching with no model call and no clinical judgement. "
+            "Clients should label them accordingly."
+        ),
+    )
 
 
 class QueryResponse(BaseModel):
@@ -223,7 +264,8 @@ async def query_endpoint(
     # ── Build source cards ────────────────────────────────────────────────
     sources = [_to_source_card(c) for c in retrieval_result.chunks]
 
-    # ── Quality scores (heuristic, no LLM call -- safe to compute inline) ──
+    # ── Structural checks (lexical only, no LLM call -- safe inline) ──────
+    # Not a measure of clinical accuracy; see QueryQualityScores.
     quality: QueryQualityScores | None = None
     try:
         from src.evaluation.judges import JudgeSet
