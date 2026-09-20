@@ -18,6 +18,7 @@ from src.generation.prompts import (
     LOW_CONFIDENCE_REFUSAL,
     SYSTEM_PROMPT,
     build_prompt,
+    with_safety_core,
 )
 
 if TYPE_CHECKING:
@@ -52,7 +53,13 @@ class ClinicalGenerator:
     ) -> GenerationResult:
         confidence_result = compute_confidence(ranked_chunks)
         confidence_gate = gate(confidence_result.score)
-        active_system_prompt = system_prompt if system_prompt is not None else SYSTEM_PROMPT
+        # A caller-supplied system_prompt is an addition to the safety core,
+        # never a replacement for it. Before this, passing one replaced the
+        # entire prompt: scope limits, citation discipline and the
+        # insufficient-evidence rule all disappeared with it.
+        active_system_prompt = with_safety_core(
+            system_prompt if system_prompt is not None else SYSTEM_PROMPT
+        )
         # /query has no explicit `language` field (unlike /treatment-card) — callers
         # that want French answers (e.g. onco-review-app) signal it by supplying
         # their own French system_prompt, so detect it the same way as
