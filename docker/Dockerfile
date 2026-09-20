@@ -31,6 +31,18 @@ COPY config/ ./config/
 COPY src/ ./src/
 COPY rag_ui.py ./rag_ui.py
 
+# Maintenance scripts. The weekly ofelia job runs
+# `python scripts/update_regulatory_db.py` inside this container; without this
+# the job failed every Sunday with "can't open file", which is why
+# data/regulatory_withdrawals.json had not been refreshed since May.
+COPY scripts/ ./scripts/
+
+# The golden set, read at runtime by src/evaluation/runner.run_evaluation via
+# its default golden_set_path. POST /eval/run raised FileNotFoundError in the
+# container without it. Only this one fixture is copied -- the test suite
+# itself stays out of the runtime image.
+COPY tests/fixtures/golden_queries.json ./tests/fixtures/golden_queries.json
+
 # Persistent data directory (evaluation outputs, metadata cache, ingestion state)
 RUN mkdir -p /app/data/evaluation
 
