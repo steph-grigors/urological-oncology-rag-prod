@@ -10,7 +10,8 @@ Final score formula (study-design + recency weighted):
 
 Weights sum to 1.0 (weighted geometric mean). Relevance dominates; study
 design and recency provide a tie-breaking nudge without overriding a directly
-relevant chunk from an older or lower-evidence source.
+relevant chunk from an older or lower-evidence source. Results are returned
+sorted by final_score descending, which is what makes that nudge take effect.
 
 Recency tiers (years before current year → weight):
     0–2  → 1.00   3–5  → 0.90   6–10 → 0.80   11–15 → 0.70   >15 → 0.60
@@ -123,6 +124,20 @@ class CohereReranker:
                     relevance_score=rel,
                     metadata=chunk.metadata,
                 ))
+
+            # Cohere returns its results in relevance order. Until this sort
+            # was added, final_score was computed and then discarded: the list
+            # was returned in Cohere's order, so the study-design and recency
+            # weights above -- and the RCT landmark boost -- had no effect on
+            # what the generation layer saw or on which chunks appeared first
+            # as [Doc 1], [Doc 2] and so on.
+            #
+            # Sorting here rather than at the call site keeps `score` as the
+            # single ordering key for this class. relevance_score is left
+            # untouched: downstream, retriever.retrieve still grades and
+            # thresholds on the raw Cohere score, and confidence is still
+            # computed from it.
+            ranked.sort(key=lambda c: c.score, reverse=True)
             return ranked
 
         except Exception:
