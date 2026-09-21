@@ -72,7 +72,10 @@ services:
     environment:
       API_BACKEND_URL: http://api:8000
     ports:
-      - "8501:8501"
+      # Loopback only: the Streamlit UI has no authentication of its own, and
+      # the board-facing client is uro-rag-web on Vercel, which talks to the
+      # API directly. Reach this over an SSH tunnel when it is running.
+      - "127.0.0.1:8501:8501"
     volumes:
       - ../rag_ui.py:/app/rag_ui.py   # hot-reload UI during development
     command:
@@ -93,8 +96,18 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
     ports:
-      - "6333:6333"   # REST API
-      - "6334:6334"   # gRPC
+      # Loopback only. Every consumer reaches Qdrant over the rag-net bridge at
+      # http://qdrant:6333, so nothing needs a published port; "6333:6333"
+      # binds 0.0.0.0 and put an unauthenticated vector store, with full read
+      # and write access to the corpus, on the open internet. Confirmed
+      # reachable from outside on 2026-09-21, returning HTTP 200 on
+      # /collections with no credentials.
+      #
+      # A host firewall is not a substitute: Docker inserts its own iptables
+      # rules ahead of ufw's, so published ports stay reachable even with ufw
+      # enabled unless DOCKER-USER is configured explicitly.
+      - "127.0.0.1:6333:6333"   # REST API, loopback only
+      - "127.0.0.1:6334:6334"   # gRPC, loopback only
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/6333' || exit 1"]
       interval: 10s
@@ -116,7 +129,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Loopback only. The API reaches Postgres over rag-net at postgres:5432.
+      # "5432:5432" bound 0.0.0.0, exposing a database holding the audit log --
+      # every question asked, and for treatment cards the patient's clinical
+      # history and identifier -- to the open internet, with the credentials
+      # POSTGRES_USER/POSTGRES_PASSWORD set to rag/rag a few lines below.
+      #
+      # Reach it for maintenance over an SSH tunnel, or with
+      # `docker exec uro-rag-postgres psql -U rag -d rag`.
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rag -d rag"]
       interval: 10s
@@ -196,7 +217,8 @@ services:
       SALT: ${LANGFUSE_SALT:-changeme-in-production}
       TELEMETRY_ENABLED: "false"
     ports:
-      - "3000:3000"
+      # Loopback only; reach the Langfuse UI over an SSH tunnel.
+      - "127.0.0.1:3000:3000"
     restart: unless-stopped
     networks:
       - rag-net
