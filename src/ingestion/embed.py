@@ -29,11 +29,22 @@ except ImportError:
 @dataclass
 class EmbedSummary:
     total_chunks: int = 0
-    embedded: int = 0
+    embedded: int = 0          # points confirmed written to Qdrant
     skipped: int = 0
-    failed: int = 0
+    failed: int = 0            # points that never reached Qdrant
+    upsert_failures: int = 0   # number of batches whose upsert gave up
     elapsed_seconds: float = 0.0
     estimated_cost_usd: float = 0.0
+
+    @property
+    def all_persisted(self) -> bool:
+        """True when every embedded chunk is known to be in Qdrant.
+
+        The pipeline checkpoints a batch of papers as ingested only when this
+        holds; otherwise the papers are left un-checkpointed so the next run
+        picks them up again.
+        """
+        return self.upsert_failures == 0 and self.failed == 0
 
 
 def ensure_collection(qdrant_client, collection: str, dim: int = _EMBEDDING_DIM) -> None:
@@ -99,7 +110,10 @@ def embed_chunks(
             summary.embedded += 1
 
         if len(points_buffer) >= qdrant_batch_size:
-            _upsert_with_retry(qdrant_client, collection, points_buffer)
+            if not _upsert_with_retry(qdrant_client, collection, points_buffer):
+                summary.embedded -= len(points_buffer)
+                summary.failed += len(points_buffer)
+                summary.upsert_failures += 1
             points_buffer = []
 
         total_words = sum(len(t.split()) for t in texts)
@@ -108,13 +122,19 @@ def embed_chunks(
         ) * _COST_PER_1K_TOKENS
 
     if points_buffer:
-        _upsert_with_retry(qdrant_client, collection, points_buffer)
+        if not _upsert_with_retry(qdrant_client, collection, points_buffer):
+            summary.embedded -= len(points_buffer)
+            summary.failed += len(points_buffer)
+            summary.upsert_failures += 1
 
     summary.elapsed_seconds = time.monotonic() - t0
-    logger.info(
-        "embed_chunks: total=%d embedded=%d failed=%d cost=$%.4f elapsed=%.1fs",
+    log = logger.info if summary.all_persisted else logger.error
+    log(
+        "embed_chunks: total=%d embedded=%d failed=%d upsert_failures=%d "
+        "cost=$%.4f elapsed=%.1fs",
         summary.total_chunks, summary.embedded, summary.failed,
-        summary.estimated_cost_usd, summary.elapsed_seconds,
+        summary.upsert_failures, summary.estimated_cost_usd,
+        summary.elapsed_seconds,
     )
     return summary
 
@@ -168,11 +188,20 @@ def _embed_with_retry(openai_client, texts: list[str], model: str, max_retries: 
     return None
 
 
-def _upsert_with_retry(qdrant_client, collection: str, points: list, max_retries: int = 3) -> None:
+def _upsert_with_retry(qdrant_client, collection: str, points: list, max_retries: int = 3) -> bool:
+    """Upsert `points`, returning True on success and False once retries are
+    exhausted.
+
+    This used to return None either way, so a permanent failure logged an
+    error and the caller carried on as though the points had landed. The
+    chunks had already been counted as embedded, the pipeline then checkpointed
+    the papers as ingested, and the next run skipped them -- the chunks were
+    gone with nothing but a log line to say so.
+    """
     for attempt in range(max_retries):
         try:
             qdrant_client.upsert(collection_name=collection, points=points)
-            return
+            return True
         except Exception as exc:
             wait = 2.0 ** attempt
             logger.warning(
@@ -181,3 +210,4 @@ def _upsert_with_retry(qdrant_client, collection: str, points: list, max_retries
             )
             time.sleep(wait)
     logger.error("upsert failed after %d attempts (%d points)", max_retries, len(points))
+    return False
