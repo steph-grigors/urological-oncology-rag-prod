@@ -35,6 +35,26 @@ services:
       timeout: 5s
       start_period: 600s
       retries: 3
+    labels:
+      # Scheduled jobs that run INSIDE this container. ofelia reads job-exec
+      # labels from the target container, not from its own, and only when
+      # ofelia.enabled is true. Schedules are 6-field cron (leading seconds);
+      # 5-field is rejected at registration.
+      ofelia.enabled: "true"
+
+      # Step 1 (01:00 UTC): refresh the regulatory withdrawal database, an hour
+      # before ingestion so newly withdrawn drugs are flagged in answers
+      # produced after the 08:00 restart.
+      ofelia.job-exec.regulatory-db-update.schedule: "0 0 1 * * 0"
+      ofelia.job-exec.regulatory-db-update.command: "python scripts/update_regulatory_db.py"
+
+      # Step 2 (02:00 UTC): ingest the past week, then rebuild the BM25 cache
+      # so the 08:00 restart loads in seconds rather than re-scrolling the
+      # whole collection.
+      ofelia.job-exec.weekly-ingestion.schedule: "0 0 2 * * 0"
+      ofelia.job-exec.weekly-ingestion.command: >-
+        sh -c "python -m src.ingestion.pipeline --since-days 7 --limit 2000 &&
+        python scripts/rebuild_bm25_cache.py"
     networks:
       - rag-net
 
@@ -109,11 +129,30 @@ services:
 
   # ── Weekly incremental ingestion ─────────────────────────────────────────────
   #
-  # Runs every Sunday at 02:00 UTC. Fetches papers published since the previous
-  # Sunday and adds them to Qdrant + checkpoints. Uses ofelia as a Docker-native
-  # cron scheduler (no host crontab needed).
+  # Start with:  docker compose --profile ingestion-cron up -d
   #
-  # Start with:  docker-compose --profile ingestion-cron up
+  # This profile had never been started in production, so no scheduled run has
+  # ever happened. When it was first brought up (2026-09-21) every job failed
+  # to register and ofelia crash-looped on "unable to start a empty scheduler".
+  # Three separate defects, all fixed below:
+  #
+  #   1. Schedules were 5-field cron ("0 2 * * 0"). ofelia requires 6 fields,
+  #      leading with seconds. A 5-field schedule is rejected silently at
+  #      registration -- the job simply never exists.
+  #   2. Jobs used `job-run` with a `container` argument. job-exec is the
+  #      documented way to run a command in an already-running container; its
+  #      labels live on the TARGET container, which also needs
+  #      ofelia.enabled=true. See the api service above.
+  #   3. The restart job shelled out to curl against the Docker socket, and
+  #      the ofelia image contains neither curl nor the Docker CLI. It now
+  #      runs `docker restart` from a docker:cli container with the socket
+  #      mounted.
+  #
+  # Ordering: regulatory refresh, then ingestion, then a cache rebuild inside
+  # the ingestion job, then the restart. The rebuild matters -- the BM25 cache
+  # is keyed on the collection's point count, so ingestion makes it stale, and
+  # without a rebuild the restart re-scrolls the whole collection inline and
+  # takes minutes instead of seconds.
   ingestion-cron:
     image: mcuadros/ofelia:latest
     container_name: uro-rag-ingestion-cron
@@ -127,32 +166,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command: daemon --docker
     labels:
-      # ── Step 1 (01:00 UTC): refresh regulatory withdrawal database ────────────
-      # Runs 1 hour before ingestion so any newly withdrawn drugs are flagged
-      # in answers produced after the Sunday 08:00 UTC API restart.
-      ofelia.job-run.regulatory-db-update.schedule: "0 1 * * 0"   # Sunday 01:00 UTC
-      ofelia.job-run.regulatory-db-update.container: "uro-rag-api"
-      ofelia.job-run.regulatory-db-update.command: >
-        python scripts/update_regulatory_db.py
-
-      # ── Step 2 (02:00 UTC): incremental paper ingestion ───────────────────────
-      # --since-days rather than --since-date $(date ...): ofelia runs a job's
-      # command directly, not through a shell, so the command substitution was
-      # never evaluated and the flag received the literal string. The pipeline
-      # now resolves the window itself.
-      ofelia.job-run.weekly-ingestion.schedule: "0 2 * * 0"   # Sunday 02:00 UTC
-      ofelia.job-run.weekly-ingestion.container: "uro-rag-api"
-      ofelia.job-run.weekly-ingestion.command: >
-        python -m src.ingestion.pipeline
-        --mode incremental
-        --since-days 7
-        --limit 2000
-
-      # ── Step 3 (08:00 UTC): restart API to reload BM25 cache + new reg. data ──
-      ofelia.job-local.restart-api-after-ingestion.schedule: "0 8 * * 0"   # Sunday 08:00 UTC
-      ofelia.job-local.restart-api-after-ingestion.command: >
-        curl -sf --unix-socket /var/run/docker.sock
-        -X POST http://localhost/v1.41/containers/uro-rag-api/restart
+      # Step 3 (08:00 UTC): restart the API so it loads the rebuilt BM25 cache.
+      # job-run, because it needs a container that has the Docker CLI.
+      ofelia.job-run.restart-api.schedule: "0 0 8 * * 0"
+      ofelia.job-run.restart-api.image: "docker:cli"
+      ofelia.job-run.restart-api.volume: "/var/run/docker.sock:/var/run/docker.sock"
+      ofelia.job-run.restart-api.command: "docker restart uro-rag-api"
+      ofelia.job-run.restart-api.delete: "true"
     restart: unless-stopped
     networks:
       - rag-net
