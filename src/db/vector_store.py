@@ -14,6 +14,7 @@ Qdrant can accelerate filtered searches without scanning all points.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass, field
 from typing import Optional
@@ -32,8 +33,14 @@ from qdrant_client.models import (
     VectorParams,
 )
 
-COLLECTION_NAME = "urological_oncology_v2"
+logger = logging.getLogger(__name__)
+
 EMBEDDING_DIMENSION = 1536
+
+# Fields that _build_filter can filter on. Each needs a payload index or Qdrant
+# falls back to scanning every point in the collection.
+PAYLOAD_KEYWORD_FIELDS = ("cancer_type", "section", "study_design", "chunk_type")
+PAYLOAD_INTEGER_FIELDS = ("year", "evidence_level")
 
 
 # ── Shared data classes ───────────────────────────────────────────────────────
@@ -79,12 +86,20 @@ class QdrantStore:
     Construct with an existing QdrantClient (pass QdrantClient(":memory:") for
     tests or the real client for production).  `ensure_collection` is called
     automatically in __init__.
+
+    `collection_name` is required. It used to default to a module constant
+    reading "urological_oncology_v2", which is not the name of any collection
+    that exists -- production uses "urological_oncology_papers", from
+    QDRANT_COLLECTION. Since ensure_collection creates a missing collection,
+    relying on that default would silently produce an empty one and serve an
+    empty corpus. Every caller already passes the name explicitly, so requiring
+    it costs nothing and removes the failure mode rather than relabelling it.
     """
 
     def __init__(
         self,
         client: QdrantClient,
-        collection_name: str = COLLECTION_NAME,
+        collection_name: str,
     ) -> None:
         self._client = client
         self._collection = collection_name
@@ -93,7 +108,18 @@ class QdrantStore:
     # ── Collection management ─────────────────────────────────────────────
 
     def ensure_collection(self) -> None:
-        """Create collection + payload indexes if they do not already exist."""
+        """Create the collection if it is missing, then ensure its payload
+        indexes exist.
+
+        The index creation used to sit inside the "collection is missing"
+        branch, so it ran only when this class created the collection itself.
+        Production never takes that path: the collection is created by
+        src/ingestion/embed.ensure_collection, which configures vectors and no
+        indexes at all, and QdrantStore then attaches to it. The result was a
+        live collection with no payload indexes, confirmed on 2026-09-20, so
+        every filtered search scanned all 687,101 points. /treatment-card
+        filters on cancer_type for every request.
+        """
         existing = {c.name for c in self._client.get_collections().collections}
         if self._collection not in existing:
             self._client.create_collection(
@@ -103,22 +129,52 @@ class QdrantStore:
                     distance=Distance.COSINE,
                 ),
             )
-            self._create_payload_indexes()
+        self._ensure_payload_indexes()
 
-    def _create_payload_indexes(self) -> None:
-        keyword_fields = ["cancer_type", "section", "study_design", "chunk_type"]
-        integer_fields = ["year", "evidence_level"]
-        for f in keyword_fields:
-            self._client.create_payload_index(
-                collection_name=self._collection,
-                field_name=f,
-                field_schema=PayloadSchemaType.KEYWORD,
-            )
-        for f in integer_fields:
-            self._client.create_payload_index(
-                collection_name=self._collection,
-                field_name=f,
-                field_schema=PayloadSchemaType.INTEGER,
+    def _existing_payload_indexes(self) -> set[str]:
+        """Field names that already carry a payload index, empty if unknown."""
+        try:
+            info = self._client.get_collection(collection_name=self._collection)
+            return set(getattr(info, "payload_schema", None) or {})
+        except Exception:
+            logger.debug("Could not read payload schema for %r", self._collection)
+            return set()
+
+    def _ensure_payload_indexes(self) -> None:
+        """Create any missing payload index, leaving existing ones alone.
+
+        Never raises. This runs on every construction, including at API
+        startup, and a Qdrant deployment that refuses index creation (older
+        server, restricted credentials, or the in-memory client used by the
+        tests, which has no payload indexes at all) must not take the service
+        down. Qdrant builds the index in the background, so the call returns
+        without waiting for 687k points to be indexed.
+        """
+        already = self._existing_payload_indexes()
+        wanted = [
+            *((f, PayloadSchemaType.KEYWORD) for f in PAYLOAD_KEYWORD_FIELDS),
+            *((f, PayloadSchemaType.INTEGER) for f in PAYLOAD_INTEGER_FIELDS),
+        ]
+        created = []
+        for field_name, schema in wanted:
+            if field_name in already:
+                continue
+            try:
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name=field_name,
+                    field_schema=schema,
+                )
+                created.append(field_name)
+            except Exception as exc:
+                logger.warning(
+                    "Could not create payload index on %r: %s — filtered "
+                    "searches on that field will scan the collection",
+                    field_name, exc,
+                )
+        if created:
+            logger.info(
+                "Created payload indexes on %r: %s", self._collection, ", ".join(created)
             )
 
     # ── Write ─────────────────────────────────────────────────────────────
