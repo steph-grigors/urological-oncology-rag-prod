@@ -17,11 +17,37 @@ Cache:
 from __future__ import annotations
 
 import json
+import logging
+import os
+import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional
 
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
+
+# ── Cache concurrency ────────────────────────────────────────────────────────
+# The pipeline extracts metadata from a ThreadPoolExecutor (_META_WORKERS = 2).
+# Each call used to read the whole cache file, add one entry to its own copy,
+# and write the whole file back. Two threads interleaving that lose one of the
+# two entries, every time it happens, and the file was also re-read and
+# rewritten in full on every single call -- quadratic I/O over a run.
+#
+# Production evidence: the cache on the VPS holds 655 entries after ingesting
+# tens of thousands of papers.
+#
+# The cache is now held in memory, guarded by a lock, and flushed to disk every
+# _CACHE_FLUSH_EVERY new entries plus on an explicit flush. Losing the last few
+# entries to a crash is acceptable: the cache only saves re-extraction cost, it
+# is never a source of truth, and every value it holds also goes into the chunk
+# payloads at ingest time.
+
+_CACHE_LOCK = threading.Lock()
+_CACHE_FLUSH_EVERY = 50
+_cache_state: dict[str, dict] = {}      # cache_path -> {pmid: record}
+_cache_dirty: dict[str, int] = {}       # cache_path -> unflushed entry count
 
 
 # ── Study design taxonomy ─────────────────────────────────────────────────────
@@ -125,11 +151,11 @@ def extract_metadata(
     writes the result back to the cache. Failures are cached as
     extraction_failed=True so they are not retried on every run.
     """
-    cache = _load_cache(cache_path)
-
-    if pmid and pmid in cache:
-        cached = cache[pmid]
+    with _CACHE_LOCK:
+        cached = _load_cache(cache_path).get(pmid) if pmid else None
+    if cached is not None:
         return ExtractionResult(**cached)
+    cache = {}
 
     if not abstract.strip():
         result = ExtractionResult(
@@ -204,12 +230,52 @@ def _call_llm(
         )
 
 
-def _load_cache(cache_path: str) -> dict:
+def _read_cache_file(cache_path: str) -> dict:
     try:
         with open(cache_path, "r", encoding="utf-8") as fh:
             return json.load(fh)
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
+
+
+def _load_cache(cache_path: str) -> dict:
+    """Return the in-memory cache for `cache_path`, reading the file once.
+
+    Callers must hold _CACHE_LOCK, or treat the result as read-only.
+    """
+    if cache_path not in _cache_state:
+        _cache_state[cache_path] = _read_cache_file(cache_path)
+        _cache_dirty[cache_path] = 0
+    return _cache_state[cache_path]
+
+
+def _write_cache_file(cache_path: str, cache: dict) -> None:
+    """Write the cache atomically. Caller holds _CACHE_LOCK."""
+    try:
+        path = Path(cache_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        with tmp.open("w", encoding="utf-8") as fh:
+            json.dump(cache, fh, indent=2, ensure_ascii=False)
+        os.replace(tmp, path)
+        _cache_dirty[cache_path] = 0
+    except OSError as exc:
+        logger.warning("Could not write metadata cache %s: %s", cache_path, exc)
+
+
+def flush_metadata_cache(cache_path: str = "data/metadata_cache.json") -> None:
+    """Persist any unflushed cache entries. Safe to call at any time."""
+    with _CACHE_LOCK:
+        cache = _cache_state.get(cache_path)
+        if cache is not None and _cache_dirty.get(cache_path):
+            _write_cache_file(cache_path, cache)
+
+
+def _reset_metadata_cache() -> None:
+    """Drop the in-memory cache. For tests."""
+    with _CACHE_LOCK:
+        _cache_state.clear()
+        _cache_dirty.clear()
 
 
 def _save_to_cache(
@@ -218,15 +284,18 @@ def _save_to_cache(
     result: ExtractionResult,
     cache_path: str,
 ) -> None:
+    """Record one result. `cache` is accepted for call-site compatibility but
+    the authoritative store is the locked in-memory one."""
     if not pmid:
         return
-    cache[pmid] = asdict(result)
-    try:
-        Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_path, "w", encoding="utf-8") as fh:
-            json.dump(cache, fh, indent=2, ensure_ascii=False)
-    except OSError:
-        pass  # Cache writes are non-fatal
+    with _CACHE_LOCK:
+        live = _load_cache(cache_path)
+        live[pmid] = asdict(result)
+        if cache is not live:
+            cache[pmid] = live[pmid]
+        _cache_dirty[cache_path] = _cache_dirty.get(cache_path, 0) + 1
+        if _cache_dirty[cache_path] >= _CACHE_FLUSH_EVERY:
+            _write_cache_file(cache_path, live)
 
 
 def _valid_design(value: object) -> str:
@@ -264,6 +333,14 @@ class MetadataExtractor:
         self._client = openai_client
         self._model = model
         self._cache_path = cache_path
+
+    def flush(self) -> None:
+        """Persist any cache entries not yet written to disk.
+
+        Called by the pipeline at batch boundaries and at the end of a run, so
+        the buffered tail is never lost to a normal shutdown.
+        """
+        flush_metadata_cache(self._cache_path)
 
     def extract(self, paper) -> ExtractionResult:
         """Extract metadata from a ParsedPaper. Falls back to defaults on failure."""
