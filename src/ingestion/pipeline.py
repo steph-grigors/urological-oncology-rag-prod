@@ -234,6 +234,29 @@ def run_ingestion(
                 topic_sum.chunks_embedded += embed_sum.embedded
                 topic_sum.estimated_cost_usd += embed_sum.estimated_cost_usd
 
+                # The comment above this block has always promised that the
+                # checkpoint is written only after a successful upsert. It was
+                # not enforced: _upsert_with_retry logged an error and returned
+                # normally when it gave up, so these papers were marked
+                # ingested with their chunks missing from Qdrant, and every
+                # later run skipped them. The live collection holds 687,101
+                # points against the 795,306 this pipeline reported, which is
+                # the shape that failure leaves behind.
+                #
+                # Leaving the batch un-checkpointed is deliberate rather than
+                # raising: the run continues through the remaining batches and
+                # topics, and the affected papers are simply picked up again
+                # next time.
+                if not embed_sum.all_persisted:
+                    logger.error(
+                        "Batch NOT checkpointed: topic=%r papers=%d chunks=%d "
+                        "failed=%d upsert_failures=%d — these papers will be "
+                        "re-processed on the next run",
+                        topic, len(batch), len(batch_chunks),
+                        embed_sum.failed, embed_sum.upsert_failures,
+                    )
+                    return
+
             for pmc_id, _ in batch:
                 ingested_ids.add(pmc_id)
             checkpoint["ingested_ids"] = list(ingested_ids)
