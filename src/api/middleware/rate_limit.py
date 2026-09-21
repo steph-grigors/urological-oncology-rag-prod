@@ -38,6 +38,13 @@ if TYPE_CHECKING:
 _ANON_LIMIT = 10          # requests/minute for unauthenticated callers
 _WINDOW_SECONDS = 60
 
+# Counters are keyed per API key or per client IP and were never removed, so
+# the dict grew with every distinct caller the process ever saw. An API key set
+# is small and bounded; unauthenticated callers are not, and a public endpoint
+# collects IPs from scanners indefinitely. Expired windows are swept once the
+# dict passes this many entries, which keeps the sweep off the hot path.
+_SWEEP_THRESHOLD = 10_000
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, settings: "Settings") -> None:
@@ -47,12 +54,28 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # {counter_key: (count, window_start_epoch)}
         self._counters: dict[str, tuple[int, float]] = {}
 
+    def _sweep_expired(self, now: float) -> None:
+        """Drop counters whose window has already rolled over.
+
+        An expired entry is indistinguishable from a missing one -- both start
+        a fresh window -- so removing them changes no decision.
+        """
+        stale = [
+            key for key, (_, window_start) in self._counters.items()
+            if now - window_start >= _WINDOW_SECONDS
+        ]
+        for key in stale:
+            del self._counters[key]
+
     async def dispatch(self, request: Request, call_next) -> Response:
         if request.url.path.startswith("/health"):
             return await call_next(request)
 
         counter_key, limit = self._resolve_key(request)
         now = time.time()
+
+        if len(self._counters) > _SWEEP_THRESHOLD:
+            self._sweep_expired(now)
         count, window_start = self._counters.get(counter_key, (0, now))
 
         # Roll the window forward when the last window has expired

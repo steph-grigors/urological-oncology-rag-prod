@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from functools import lru_cache
 from typing import Optional
 
 import logging
@@ -51,11 +50,10 @@ class RetrievalResult:
 
 
 # ── Embedding cache ───────────────────────────────────────────────────────────
-# Module-level LRU so repeated identical queries skip the API call.
+# Repeated identical queries skip the OpenAI call. Bounded and per-instance:
+# see RAGRetriever._embed.
 
-@lru_cache(maxsize=1000)
-def _cached_embed(query: str, model: str, client_id: int) -> tuple[float, ...]:
-    raise NotImplementedError  # replaced at runtime by RAGRetriever._embed
+_EMBED_CACHE_MAXSIZE = 1000
 
 
 # ── Retry helper ──────────────────────────────────────────────────────────────
@@ -138,6 +136,8 @@ class RAGRetriever:
                                Incorrect (relevance_score < CONFIDENCE_LOW), a single
                                question-level PubMed search runs instead of returning
                                nothing. Pass None (default) to disable.
+    embed_cache_maxsize      : entries kept in the per-instance query-embedding cache.
+                               0 disables caching entirely.
     """
 
     # Only narrative reviews are capped. "unknown" is excluded: it is the
@@ -157,6 +157,7 @@ class RAGRetriever:
         top_k_rerank: int = 5,
         source_type_diversity_cap: Optional[int] = 3,
         web_fallback: Optional[PubMedWebSearch] = None,
+        embed_cache_maxsize: int = _EMBED_CACHE_MAXSIZE,
     ) -> None:
         self._store = store
         self._bm25 = bm25
@@ -167,6 +168,8 @@ class RAGRetriever:
         self._top_k_rerank = top_k_rerank
         self._diversity_cap = source_type_diversity_cap
         self._web_fallback = web_fallback
+        self._embed_cache: dict[tuple[str, str], list[float]] = {}
+        self._embed_cache_maxsize = embed_cache_maxsize
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -270,18 +273,33 @@ class RAGRetriever:
     # ── Private helpers ───────────────────────────────────────────────────
 
     def _embed(self, query: str) -> list[float]:
-        """Embed a query string, using an in-process LRU cache."""
+        """Embed a query string, using a bounded in-process cache.
+
+        The cache was previously an unbounded dict declared as a CLASS
+        attribute, so it was shared by every RAGRetriever ever constructed and
+        never evicted anything. In a long-running API each distinct query added
+        a 1536-float list that was never reclaimed, which is a slow leak
+        proportional to unique traffic rather than to anything bounded.
+
+        Eviction is first-in-first-out rather than true least-recently-used: a
+        hit does not move the entry, which keeps the container swappable for a
+        plain dict and costs nothing that matters here, since the point is
+        simply to bound the memory.
+        """
         cache_key = (query, self._embedding_model)
-        if cache_key in self._embed_cache:
-            return self._embed_cache[cache_key]
+        cached = self._embed_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         response = _retry_with_backoff(
             self._openai.embeddings.create,
             input=query,
             model=self._embedding_model,
         )
         embedding = response.data[0].embedding
-        self._embed_cache[cache_key] = embedding
-        return embedding
 
-    # Simple dict-based cache (module lru_cache doesn't work on instance methods)
-    _embed_cache: dict = {}
+        if self._embed_cache_maxsize > 0:
+            while len(self._embed_cache) >= self._embed_cache_maxsize:
+                self._embed_cache.pop(next(iter(self._embed_cache)))
+            self._embed_cache[cache_key] = embedding
+        return embedding
