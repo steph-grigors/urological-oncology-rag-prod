@@ -159,3 +159,49 @@ class TestCollectionNameIsRequired:
                 if args.strip() and "collection_name" not in args:
                     offenders.append(f"{path.name}: QdrantStore({args})")
         assert not offenders, offenders
+
+
+class TestIndexRequestsAreAsynchronous:
+    """The first production run of this code blocked on every index build. All
+    six calls timed out after five seconds, adding 30 seconds to startup and
+    logging six warnings saying the indexes did not exist -- when Qdrant had
+    created every one of them."""
+
+    def test_requests_do_not_wait_for_the_build(self):
+        client = _client(collection_exists=True)
+        QdrantStore(client, collection_name="existing_collection")
+        for call in client.create_payload_index.call_args_list:
+            assert call.kwargs.get("wait") is False, (
+                "index creation must not block startup on building the index "
+                "across every point"
+            )
+
+    def test_a_timeout_is_rechecked_before_being_reported_as_missing(self, caplog):
+        """A client-side timeout is a wait expiring, not a rejection."""
+        import logging
+
+        client = _client(collection_exists=True)
+        client.create_payload_index.side_effect = RuntimeError("timed out")
+        # The re-read shows the indexes do exist: Qdrant accepted the requests.
+        client.get_collection.side_effect = [
+            MagicMock(payload_schema={}),                                  # before
+            MagicMock(payload_schema={f: MagicMock() for f in ALL_FIELDS}),  # after
+        ]
+        with caplog.at_level(logging.INFO, logger="src.db.vector_store"):
+            QdrantStore(client, collection_name="existing_collection")
+
+        text = caplog.text
+        assert "the index exists on" in text
+        assert "will scan the collection" not in text, (
+            "must not claim the field is unindexed without re-reading"
+        )
+
+    def test_a_genuine_failure_is_still_reported(self, caplog):
+        import logging
+
+        client = _client(collection_exists=True)
+        client.create_payload_index.side_effect = RuntimeError("not permitted")
+        client.get_collection.return_value = MagicMock(payload_schema={})
+        with caplog.at_level(logging.WARNING, logger="src.db.vector_store"):
+            QdrantStore(client, collection_name="existing_collection")
+        assert "will scan the collection" in caplog.text

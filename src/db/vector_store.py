@@ -147,35 +147,67 @@ class QdrantStore:
         startup, and a Qdrant deployment that refuses index creation (older
         server, restricted credentials, or the in-memory client used by the
         tests, which has no payload indexes at all) must not take the service
-        down. Qdrant builds the index in the background, so the call returns
-        without waiting for 687k points to be indexed.
+        down.
+
+        Requests are made with wait=False so Qdrant builds each index in the
+        background. The first production run of this code used the default,
+        which blocks until the index is built across every point: all six calls
+        timed out after five seconds each, adding 30 seconds to startup and
+        logging six warnings claiming the indexes did not exist. Every one of
+        them had in fact been created.
         """
         already = self._existing_payload_indexes()
         wanted = [
             *((f, PayloadSchemaType.KEYWORD) for f in PAYLOAD_KEYWORD_FIELDS),
             *((f, PayloadSchemaType.INTEGER) for f in PAYLOAD_INTEGER_FIELDS),
         ]
-        created = []
+        requested: list[str] = []
+        failed: list[str] = []
         for field_name, schema in wanted:
             if field_name in already:
                 continue
             try:
+                # wait=False: Qdrant accepts the request and builds the index in
+                # the background. Waiting instead makes the client block until
+                # the index is built over every point, which on the production
+                # collection exceeded the default timeout on all six fields and
+                # added 30 seconds to startup for nothing.
                 self._client.create_payload_index(
                     collection_name=self._collection,
                     field_name=field_name,
                     field_schema=schema,
+                    wait=False,
                 )
-                created.append(field_name)
+                requested.append(field_name)
             except Exception as exc:
-                logger.warning(
-                    "Could not create payload index on %r: %s — filtered "
-                    "searches on that field will scan the collection",
-                    field_name, exc,
-                )
-        if created:
+                failed.append(field_name)
+                logger.warning("Could not request payload index on %r: %s", field_name, exc)
+
+        if requested:
             logger.info(
-                "Created payload indexes on %r: %s", self._collection, ", ".join(created)
+                "Requested payload indexes on %r: %s (built in the background)",
+                self._collection, ", ".join(requested),
             )
+        if failed:
+            # Re-read before claiming anything. A timeout is a client-side wait
+            # expiring, not a rejection: Qdrant may well have accepted the
+            # request and be building the index anyway. Saying "filtered
+            # searches will scan the collection" without checking told operators
+            # the opposite of what had actually happened.
+            present = self._existing_payload_indexes()
+            building = [f for f in failed if f in present]
+            missing = [f for f in failed if f not in present]
+            if building:
+                logger.info(
+                    "Index request reported an error but the index exists on: %s",
+                    ", ".join(building),
+                )
+            if missing:
+                logger.warning(
+                    "No payload index on %s — filtered searches on those fields "
+                    "will scan the collection",
+                    ", ".join(missing),
+                )
 
     # ── Write ─────────────────────────────────────────────────────────────
 
