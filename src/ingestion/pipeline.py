@@ -194,6 +194,10 @@ def run_ingestion(
                             meta_map[pid] = fut.result()
                         except Exception as exc:
                             logger.warning("Metadata extraction failed for %s: %s", pid, exc)
+                # Persist the batch's extractions now that the workers are done.
+                # The cache buffers writes rather than rewriting the whole file
+                # per paper, so it needs an explicit flush at batch boundaries.
+                meta_extractor.flush()
 
             # ── Chunk all papers in batch ─────────────────────────────────
             batch_chunks: list = []
@@ -317,6 +321,9 @@ def run_ingestion(
         summary.estimated_cost_usd += topic_sum.estimated_cost_usd
 
     topic_bar.close()
+
+    if meta_extractor is not None:
+        meta_extractor.flush()
 
     summary.elapsed_seconds = time.monotonic() - t0
     progress["status"] = "complete"
