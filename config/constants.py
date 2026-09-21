@@ -112,6 +112,18 @@ SECTION_PRIORITY: Final[dict[str, float]] = {
 
 # ── Chunking ─────────────────────────────────────────────────────────────────
 
+# Evidence level assigned when a chunk carries none. Matches
+# src/ingestion/chunk.EVIDENCE_LEVELS["unknown"], so an absent field is treated
+# exactly like an explicit "unknown" rather than being read as strong evidence.
+#
+# src/generation/confidence.py defaulted to 6 (weakest) and
+# src/evaluation/judges.py to 1 (strongest), for the same missing field. The
+# judge therefore counted an unlabelled chunk as high-evidence and waived the
+# requirement for hedging language, which is the wrong way round: chunks with
+# no evidence level are mostly PubMed web-fallback results, which are fetched
+# live, never reranked and never quality-gated.
+UNKNOWN_EVIDENCE_LEVEL: Final[int] = 6
+
 MIN_CHUNK_WORDS: Final[int] = 30
 MAX_CHUNK_WORDS: Final[int] = 600
 
