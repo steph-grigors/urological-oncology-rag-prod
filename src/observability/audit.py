@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from src.db.models import AuditLog, Base
 from src.generation.confidence import gate as compute_gate
+from src.observability.scrub import audit_question_for_card, scrub_pii
 
 if TYPE_CHECKING:
     from src.generation.card_generator import TreatmentCardResult
@@ -63,7 +64,9 @@ class AuditLogger:
         await asyncio.to_thread(
             self._insert,
             query_id=query_id,
-            question=question,
+            # Scrubbed: a clinician can paste an MRN or an email into a free
+            # text question, and this column is where it would have persisted.
+            question=scrub_pii(question),
             answer=result.answer,
             confidence=confidence,
             gate_decision=gate.value,
@@ -107,6 +110,12 @@ class AuditLogger:
         card (including chunks_used/grounded — independent of whether the
         caller opted into disclose_fallback at the API level) as JSON.
 
+        The patient identifier is stored pseudonymised, and the narrative is
+        scrubbed of structured identifiers. Note the limit of that: a clinical
+        history detailed enough to warrant a card can identify a person on its
+        own, and this does not make the row anonymous. `answer` carries no
+        patient identifier — the card JSON never included one.
+
         `sources` always holds the real, database-grounded sources_detail —
         even when it's an empty list (zero chunks retrieved). It is never
         substituted with the LLM's free-text `sources`, so a reviewer can't
@@ -138,7 +147,10 @@ class AuditLogger:
         await asyncio.to_thread(
             self._insert,
             query_id=query_id,
-            question=f"[treatment-card] patient={patient_id}: {clinical_history[:500]}",
+            # patient_id is pseudonymised to a stable token and the
+            # narrative scrubbed of structured identifiers. The row shape is
+            # unchanged so existing queries against this column still work.
+            question=audit_question_for_card(patient_id, clinical_history),
             answer=card_json,
             confidence=confidence,
             gate_decision=compute_gate(confidence).value,
