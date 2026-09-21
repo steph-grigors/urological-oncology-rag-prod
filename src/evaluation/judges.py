@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from config.constants import UNKNOWN_EVIDENCE_LEVEL
+
 # ── Regex patterns ────────────────────────────────────────────────────────────
 
 _CITATION_RE = re.compile(r"\[Doc\s*(\d+)\]", re.IGNORECASE)
@@ -271,7 +273,7 @@ def _heuristic_evidence_appropriate(answer: str, chunks: list) -> tuple[float, s
     low_evidence = [
         c for c in chunks
         if isinstance(getattr(c, "metadata", None), dict)
-        and c.metadata.get("evidence_level", 1) >= 4
+        and c.metadata.get("evidence_level", UNKNOWN_EVIDENCE_LEVEL) >= 4
     ]
     if not low_evidence:
         return 1.0, "All sources are high-evidence (level < 4)."

@@ -69,6 +69,10 @@ _DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 CardLanguage = Literal["fr", "en"]
 
+# Used when the model omits `level`. The weakest value in the tool enum, so a
+# missing grade is never presented as a stronger recommendation than it is.
+_UNGRADED_LEVEL = "Expert opinion"
+
 _FALLBACK_DISCLOSURE: dict[str, str] = {
     "fr": (
         "⚠ Aucune littérature pertinente n'a été retrouvée — cette recommandation "
@@ -94,7 +98,7 @@ _LABELS: dict[str, dict[str, str]] = {
         "reference_docs": "Documents de référence",
         "no_comorbidities": "Aucune comorbidité précisée",
         "default_confidence": "Modérée",
-        "default_intent": "Palliatif",
+        "default_intent": "Non précisé",
     },
     "en": {
         "patient_data": "Patient data",
@@ -104,7 +108,7 @@ _LABELS: dict[str, dict[str, str]] = {
         "reference_docs": "Reference documents",
         "no_comorbidities": "No comorbidities specified",
         "default_confidence": "Moderate",
-        "default_intent": "Palliative",
+        "default_intent": "Not specified",
     },
 }
 
@@ -522,25 +526,33 @@ class CardGenerator:
             intent_map = self._reclassify_intent(
                 stage_raw, treatment_names, language, custom_system_prompt=system_prompt
             )
-            for t in treatment_list:
-                drug = t.get("drug", "")
-                for key, intent in intent_map.items():
-                    if key.lower() in drug.lower() or drug.lower() in key.lower():
-                        t["intent"] = intent
-                        break
+            _apply_intent_map(treatment_list, intent_map)
 
         # ── Step 4: build triplets ─────────────────────────────────────────
         # keep_citations=False (default): strip every [Doc N], as always.
         # keep_citations=True: keep [Doc N] only if it points at a real chunk.
         n_chunks = len(ranked_chunks)
+        # Both defaults below fire only when the model omitted a required field.
+        # They must not invent a clinical signal in that case:
+        #
+        #   level  previously defaulted to "B", a guideline-endorsed grade
+        #          backed by cohort evidence. A missing grade is not a B grade.
+        #          "Expert opinion" is the weakest value in the tool enum and is
+        #          the honest stand-in for "the model did not assign one".
+        #   intent previously defaulted to Palliatif/Palliative, which asserts
+        #          the disease is incurable. On a card an intern may act on,
+        #          that is the most consequential thing to guess wrong.
+        #
+        # Both render as a neutral grey tag in uro-rag-web, which falls back to
+        # FALLBACK_TAG for any value it has no colour for.
         triplets = [
             TreatmentTriplet(
                 drug=(
                     _strip_invalid_doc_tags(t.get("drug", ""), n_chunks)
                     if keep_citations else _strip_doc_tags(t.get("drug", ""))
                 ),
-                intent=t.get("intent", labels["default_intent"]),
-                level=t.get("level", "B"),
+                intent=t.get("intent") or labels["default_intent"],
+                level=t.get("level") or _UNGRADED_LEVEL,
             )
             for t in treatment_list
         ]
@@ -667,6 +679,49 @@ class CardGenerator:
 
 
 # ── Module-level helpers ──────────────────────────────────────────────────────
+
+
+def _apply_intent_map(treatment_list: list[dict], intent_map: dict[str, str]) -> None:
+    """Assign the reclassified therapeutic intent to each treatment, in place.
+
+    Matching used to be bidirectional substring containment:
+
+        key.lower() in drug.lower() or drug.lower() in key.lower()
+
+    The second arm is unsafe. A short drug name matches inside any longer key
+    that happens to contain it, so "Prednisone" picked up the intent assigned
+    to "Abiraterone + prednisone", and the first such key in dict order won
+    because the loop broke on the first hit. Two treatments in the same card
+    could therefore be given each other's intent, silently.
+
+    Matching is now, in order:
+      1. exact, on the normalised string
+      2. the model's key contained in the drug string -- the legitimate case,
+         where the card carries a dosage the intent call did not, e.g. key
+         "Abiraterone" against drug "Abiraterone 1000 mg/day [Doc 2]"
+    and a candidate is only accepted when exactly one key matches. Ambiguity
+    leaves the intent the card generation step already produced, which is
+    better than picking one arbitrarily.
+    """
+    normalised = {k.strip().lower(): v for k, v in intent_map.items() if k and k.strip()}
+    if not normalised:
+        return
+
+    for treatment in treatment_list:
+        drug = (treatment.get("drug") or "").strip().lower()
+        if not drug:
+            continue
+
+        intent = normalised.get(drug)
+        if intent is None:
+            candidates = {v for k, v in normalised.items() if k in drug}
+            if len(candidates) != 1:
+                continue
+            intent = candidates.pop()
+
+        if intent:
+            treatment["intent"] = intent
+
 
 def _strip_doc_tags(text: str) -> str:
     return DOC_TAG_RE.sub("", text).strip()

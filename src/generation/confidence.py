@@ -9,7 +9,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from config.constants import CONFIDENCE_HIGH, CONFIDENCE_LOW, CONFIDENCE_REFUSE
+from config.constants import (
+    CONFIDENCE_HIGH,
+    CONFIDENCE_LOW,
+    CONFIDENCE_REFUSE,
+    UNKNOWN_EVIDENCE_LEVEL,
+)
 
 if TYPE_CHECKING:
     from src.retrieval.reranker import RankedChunk
@@ -44,7 +49,7 @@ def compute_confidence(
     reasons: list[str] = []
 
     # Evidence quality: boost for RCT/meta-analysis (level ≤ 2), penalise for review/unknown (level ≥ 5)
-    levels = [c.metadata.get("evidence_level", 6) for c in chunks]
+    levels = [c.metadata.get("evidence_level", UNKNOWN_EVIDENCE_LEVEL) for c in chunks]
     if any(lv <= 2 for lv in levels):
         adj += 0.1
         reasons.append("evidence_boost")
