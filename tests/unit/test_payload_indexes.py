@@ -122,3 +122,40 @@ class TestFilterFieldsAreAllIndexed:
         src = inspect.getsource(vector_store._build_filter)
         probe = field if field not in ("year",) else "year_min"
         assert probe in src, f"{field} is indexed but _build_filter never uses it"
+
+
+class TestCollectionNameIsRequired:
+    """QdrantStore.collection_name used to default to a module constant reading
+    "urological_oncology_v2", which names no collection that exists --
+    production uses "urological_oncology_papers" from QDRANT_COLLECTION. Since
+    ensure_collection creates a missing collection, anyone relying on that
+    default silently got an empty one and served an empty corpus."""
+
+    def test_omitting_it_is_a_type_error(self):
+        with pytest.raises(TypeError):
+            QdrantStore(_client(collection_exists=True))  # type: ignore[call-arg]
+
+    def test_the_stale_constant_is_gone(self):
+        from src.db import vector_store
+
+        assert not hasattr(vector_store, "COLLECTION_NAME"), (
+            "a module-level default collection name invites exactly the "
+            "failure it used to cause"
+        )
+
+    def test_every_caller_passes_it_explicitly(self):
+        """Guards the change: if a caller ever stops passing it, this and the
+        TypeError test both fail rather than the mistake reaching production."""
+        import re
+        from pathlib import Path as _Path
+
+        root = _Path(__file__).resolve().parents[2]
+        offenders = []
+        for path in list(root.glob("src/**/*.py")) + list(root.glob("scripts/**/*.py")):
+            if "__pycache__" in str(path):
+                continue
+            for match in re.finditer(r"QdrantStore\(([^)]*)\)", path.read_text()):
+                args = match.group(1)
+                if args.strip() and "collection_name" not in args:
+                    offenders.append(f"{path.name}: QdrantStore({args})")
+        assert not offenders, offenders

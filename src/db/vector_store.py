@@ -35,7 +35,6 @@ from qdrant_client.models import (
 
 logger = logging.getLogger(__name__)
 
-COLLECTION_NAME = "urological_oncology_v2"
 EMBEDDING_DIMENSION = 1536
 
 # Fields that _build_filter can filter on. Each needs a payload index or Qdrant
@@ -87,12 +86,20 @@ class QdrantStore:
     Construct with an existing QdrantClient (pass QdrantClient(":memory:") for
     tests or the real client for production).  `ensure_collection` is called
     automatically in __init__.
+
+    `collection_name` is required. It used to default to a module constant
+    reading "urological_oncology_v2", which is not the name of any collection
+    that exists -- production uses "urological_oncology_papers", from
+    QDRANT_COLLECTION. Since ensure_collection creates a missing collection,
+    relying on that default would silently produce an empty one and serve an
+    empty corpus. Every caller already passes the name explicitly, so requiring
+    it costs nothing and removes the failure mode rather than relabelling it.
     """
 
     def __init__(
         self,
         client: QdrantClient,
-        collection_name: str = COLLECTION_NAME,
+        collection_name: str,
     ) -> None:
         self._client = client
         self._collection = collection_name
