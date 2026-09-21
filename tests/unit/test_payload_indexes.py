@@ -145,8 +145,15 @@ class TestCollectionNameIsRequired:
 
     def test_every_caller_passes_it_explicitly(self):
         """Guards the change: if a caller ever stops passing it, this and the
-        TypeError test both fail rather than the mistake reaching production."""
-        import re
+        TypeError test both fail rather than the mistake reaching production.
+
+        Parsed rather than pattern-matched. The first version used a regex
+        whose character class stopped at the first closing paren, so a call
+        wrapping a nested constructor -- QdrantStore(QdrantClient(...),
+        collection_name=x) -- was reported as missing the argument it plainly
+        passed. It flagged a correct call site and let a wrong one through
+        just as easily."""
+        import ast
         from pathlib import Path as _Path
 
         root = _Path(__file__).resolve().parents[2]
@@ -154,11 +161,20 @@ class TestCollectionNameIsRequired:
         for path in list(root.glob("src/**/*.py")) + list(root.glob("scripts/**/*.py")):
             if "__pycache__" in str(path):
                 continue
-            for match in re.finditer(r"QdrantStore\(([^)]*)\)", path.read_text()):
-                args = match.group(1)
-                if args.strip() and "collection_name" not in args:
-                    offenders.append(f"{path.name}: QdrantStore({args})")
-        assert not offenders, offenders
+            tree = ast.parse(path.read_text(), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+                if name != "QdrantStore":
+                    continue
+                by_keyword = any(kw.arg == "collection_name" for kw in node.keywords)
+                by_position = len(node.args) >= 2
+                if not (by_keyword or by_position):
+                    offenders.append(f"{path.name}:{node.lineno}")
+        assert not offenders, (
+            f"QdrantStore called without a collection name at: {offenders}"
+        )
 
 
 class TestIndexRequestsAreAsynchronous:
