@@ -7,8 +7,24 @@ already been counted as embedded, the pipeline checkpointed the papers as
 ingested, and every subsequent run skipped them. The chunks were gone and the
 summary said otherwise.
 
-Measured against production on 2026-09-20, the live collection holds 687,101
-points where this pipeline reported 795,306 -- the shape that failure leaves.
+NOTE: an earlier version of this docstring, and the commit that introduced it,
+claimed the 687,101 live points against 795,306 reported was evidence of this
+bug firing in production. That was wrong, and it was asserted without being
+checked. Diffing the ingestion checkpoints against the pmcids actually stored
+in Qdrant found zero missing papers and zero extras: 27,574 expected, 27,574
+present.
+
+The real explanation is double-counting across ingestion runs. The summary's
+31,361 papers is exactly the two checkpoints added together (27,515 + 3,846),
+ignoring that 3,787 of run four's papers had already been ingested. Those
+re-processed papers regenerate identical chunk ids, so their upserts overwrote
+existing points instead of adding new ones. 109,842 run-four chunks at 98.5%
+overlap predicts 108,157 duplicates; the actual gap is 108,205. A difference of
+48 across 687k.
+
+The bug these tests cover is real -- the function returned the same value
+whether it succeeded or gave up, and the pipeline checkpointed regardless --
+it simply never fired in production.
 """
 
 from __future__ import annotations
