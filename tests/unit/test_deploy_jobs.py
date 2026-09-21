@@ -258,3 +258,54 @@ class TestOfeliaJobsCanRegister:
     def test_the_rebuild_script_exists_and_is_in_the_image(self):
         assert (REPO_ROOT / "scripts" / "rebuild_bm25_cache.py").is_file()
         assert re.search(r"^COPY scripts/", DOCKERFILE.read_text(), re.M)
+
+
+# ── Network exposure ─────────────────────────────────────────────────────────
+
+class TestOnlyTheApiIsPublished:
+    """Confirmed on 2026-09-21: the production host had no firewall, and
+    Postgres (credentials rag/rag, holding the audit log with patient
+    narratives) and Qdrant (unauthenticated, full read/write on the corpus)
+    both answered the open internet.
+
+    A host firewall does not fix this. Docker inserts its own iptables rules
+    ahead of ufw's, so a published port stays reachable with ufw enabled
+    unless DOCKER-USER is configured explicitly. The binding itself is the
+    control."""
+
+    # The API is the intended public surface; everything else is reached over
+    # the rag-net bridge by service name.
+    PUBLIC_BY_DESIGN = {"api"}
+
+    def _published(self) -> list[tuple[str, str]]:
+        import yaml
+
+        compose = yaml.safe_load(COMPOSE.read_text())
+        out = []
+        for name, svc in compose["services"].items():
+            for port in svc.get("ports", []) or []:
+                out.append((name, str(port)))
+        return out
+
+    def test_no_datastore_is_published_publicly(self):
+        offenders = [
+            f"{name} -> {port}"
+            for name, port in self._published()
+            if name not in self.PUBLIC_BY_DESIGN and not port.startswith("127.0.0.1:")
+        ]
+        assert not offenders, (
+            f"published on all interfaces: {offenders}. Bind to 127.0.0.1 and "
+            "reach the service over the rag-net bridge or an SSH tunnel."
+        )
+
+    @pytest.mark.parametrize("service", ["postgres", "qdrant"])
+    def test_the_datastores_are_loopback_only(self, service):
+        ports = [p for n, p in self._published() if n == service]
+        assert ports, f"{service} publishes nothing at all — unexpected"
+        for port in ports:
+            assert port.startswith("127.0.0.1:"), f"{service} publishes {port}"
+
+    def test_the_api_is_still_reachable(self):
+        """Guards against over-correcting: the API is the public surface."""
+        api = [p for n, p in self._published() if n == "api"]
+        assert any(not p.startswith("127.0.0.1:") for p in api)
