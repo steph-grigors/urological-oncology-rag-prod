@@ -7,7 +7,8 @@ Full pipeline per query:
   3. BM25 search in-memory (top_k_retrieval, with metadata filters)
   4. RRF fusion → top_k_retrieval merged candidates
   5. Rerank via Cohere (or passthrough) → top_k_rerank final chunks
-  6. Compute retrieval_confidence = mean relevance_score across final chunks
+  6. Compute retrieval_confidence across the FULL reranked set (not only the
+     chunks that survived grading, which put a floor under the number)
 
 Metadata filters are applied before reranking:
   - Dense search: filters pushed down to Qdrant (most efficient)
@@ -28,6 +29,7 @@ import logging
 from openai import OpenAI
 
 from config.constants import CONFIDENCE_LOW
+from src.generation.confidence import compute_confidence
 from src.db.vector_store import QdrantStore, ScoredChunk
 from src.retrieval.bm25_search import BM25Search
 from src.retrieval.hybrid import rrf_fusion
@@ -235,6 +237,9 @@ class RAGRetriever:
         # weak to answer from, and a single question-level PubMed search
         # runs in its place (no per-chunk search, no agentic loop).
         graded = [c for c in ranked if c.relevance_score >= CONFIDENCE_LOW]
+        # The set confidence is scored over: every candidate the reranker
+        # judged, not only those that cleared the bar.
+        candidates = ranked
         used_web_fallback = False
         if not graded and self._web_fallback is not None:
             t4 = time.perf_counter()
@@ -252,15 +257,28 @@ class RAGRetriever:
                 # these do not answer the question either, we are better off on
                 # the ungrounded path, which at least says so.
                 graded = [c for c in web_ranked if c.relevance_score >= CONFIDENCE_LOW]
+                if graded:
+                    # Confidence must describe the evidence actually returned.
+                    # Leaving this as the local set would score the chunks we
+                    # just discarded.
+                    candidates = web_ranked
             timings["web_fallback_ms"] = (time.perf_counter() - t4) * 1000
             used_web_fallback = bool(graded)
 
         timings["total_ms"] = (time.perf_counter() - t_start) * 1000
 
-        confidence = (
-            sum(c.relevance_score for c in graded) / len(graded)
-            if graded else 0.0
-        )
+        # Scored from the FULL reranked set, not from the survivors of the
+        # cRAG filter above. Averaging only what survived a >= CONFIDENCE_LOW
+        # cut meant the result could not fall below CONFIDENCE_LOW whenever
+        # anything survived: a retrieval where 4 of 5 chunks were irrelevant
+        # reported the score of the one that was not. Measured on production,
+        # a penile sarcomatoid query reported 0.482 that way against an honest
+        # 0.310 -- the difference between "hedged" and "caveated".
+        #
+        # compute_confidence rather than a bare mean, so the evidence-level,
+        # single-paper and spread adjustments apply here too, and this value
+        # and the generator's agree.
+        confidence = compute_confidence(candidates).score if candidates else 0.0
 
         logger.info(
             "Retrieval timings — embed: %.0fms | dense: %.0fms | bm25: %.0fms | "

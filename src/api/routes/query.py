@@ -134,8 +134,27 @@ class QueryQualityScores(BaseModel):
 
 class QueryResponse(BaseModel):
     answer: str
-    evidence_quality: str
-    confidence_score: float
+    evidence_quality: str = Field(
+        ...,
+        description=(
+            "Response posture chosen from confidence_score: 'high', 'hedged', "
+            "'caveated', or 'insufficient' when nothing relevant was retrieved "
+            "and the answer comes from the model's own knowledge."
+        ),
+    )
+    confidence_score: float = Field(
+        ...,
+        description=(
+            "How well retrieval matched the question, NOT confidence that the "
+            "answer is correct. It is the mean reranker relevance of the top "
+            "candidates, adjusted for evidence level, source diversity and "
+            "score spread. A high value means the retrieved passages look like "
+            "the question; it does not mean they answer it. A question with no "
+            "literature can still score highly if the corpus contains passages "
+            "on the same subject. Nothing here reads the passages to judge "
+            "whether they address what was asked."
+        ),
+    )
     sources: list[SourceCard]
     conversation_id: str
     request_id: str
@@ -232,6 +251,10 @@ async def query_endpoint(
             retrieval_result.chunks,
             conversation_history=conversation_history,
             system_prompt=body.system_prompt,
+            # Scored over the full reranked candidate set. Letting the
+            # generator recompute would see only the chunks that survived
+            # grading, which cannot fall below the grading threshold.
+            confidence_score=retrieval_result.retrieval_confidence,
         )
     except Exception as exc:
         logger.error("Generation failed: %s", exc)
