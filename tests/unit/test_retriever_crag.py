@@ -33,7 +33,30 @@ def _build_retriever(reranked: list[RankedChunk], web_fallback=None) -> RAGRetri
     bm25 = MagicMock()
     bm25.search.return_value = []
     reranker = MagicMock()
-    reranker.rerank.return_value = reranked
+
+    # The retriever now calls rerank twice when the fallback fires: once for
+    # the local fused candidates, then again for the unranked PubMed hits, so
+    # those arrive with a measured relevance instead of an assumed one. A fixed
+    # return_value would hand the local chunks back on the second call, so the
+    # double reranks whatever it is actually given from the second call on,
+    # preserving each chunk's own score.
+    def _rerank(query, chunks, top_n):
+        if not _rerank.called:
+            _rerank.called = True
+            return reranked
+        return [
+            RankedChunk(
+                chunk_id=c.chunk_id,
+                text=c.text,
+                score=getattr(c, "relevance_score", c.score),
+                relevance_score=getattr(c, "relevance_score", c.score),
+                metadata=c.metadata,
+            )
+            for c in chunks[:top_n]
+        ]
+
+    _rerank.called = False
+    reranker.rerank.side_effect = _rerank
     openai_client = MagicMock()
     openai_client.embeddings.create.return_value = MagicMock(
         data=[MagicMock(embedding=[0.0] * 1536)]
@@ -77,6 +100,8 @@ class TestChunkGrading:
 class TestWebFallback:
     def test_fires_only_when_all_chunks_incorrect(self):
         web_fallback = MagicMock()
+        # Unranked, as PubMedWebSearch now returns them. The retriever is
+        # responsible for scoring these, not the fallback.
         web_fallback.search.return_value = [_make_chunk("pubmed:1", CONFIDENCE_LOW)]
 
         chunks = [_make_chunk("bad", 0.1)]
@@ -115,3 +140,55 @@ class TestWebFallback:
 
         assert result.chunks == []
         assert result.used_web_fallback is False
+
+
+class TestWebFallbackResultsAreScored:
+    """PubMed hits used to arrive pre-assigned exactly CONFIDENCE_LOW, so
+    retrieval_confidence became exactly 0.45 whenever this path fired -- a
+    number nobody had measured, on results that passed neither the ingestion
+    quality gate nor any relevance judgement. They now go through the same
+    cross-encoder the local corpus does."""
+
+    def test_hits_are_passed_through_the_reranker(self):
+        web_fallback = MagicMock()
+        web_fallback.search.return_value = [_make_chunk("pubmed:1", 0.8)]
+        retriever = _build_retriever([_make_chunk("bad", 0.1)], web_fallback=web_fallback)
+
+        retriever.retrieve("query with no local evidence")
+
+        # Once for the local candidates, once for the PubMed hits.
+        assert retriever._reranker.rerank.call_count == 2
+
+    def test_confidence_reflects_the_measured_score(self):
+        web_fallback = MagicMock()
+        web_fallback.search.return_value = [_make_chunk("pubmed:1", 0.82)]
+        retriever = _build_retriever([_make_chunk("bad", 0.1)], web_fallback=web_fallback)
+
+        result = retriever.retrieve("query")
+
+        assert result.used_web_fallback is True
+        assert result.retrieval_confidence == pytest.approx(0.82)
+        assert result.retrieval_confidence != pytest.approx(CONFIDENCE_LOW)
+
+    def test_hits_the_reranker_rejects_are_dropped(self):
+        """Held to the same bar as local evidence. If PubMed does not answer
+        the question either, the ungrounded path at least says so."""
+        web_fallback = MagicMock()
+        web_fallback.search.return_value = [_make_chunk("pubmed:1", 0.2)]
+        retriever = _build_retriever([_make_chunk("bad", 0.1)], web_fallback=web_fallback)
+
+        result = retriever.retrieve("query")
+
+        assert result.chunks == []
+        assert result.used_web_fallback is False
+        assert result.retrieval_confidence == 0.0
+
+    def test_no_hits_leaves_the_ungrounded_path(self):
+        web_fallback = MagicMock()
+        web_fallback.search.return_value = []
+        retriever = _build_retriever([_make_chunk("bad", 0.1)], web_fallback=web_fallback)
+
+        result = retriever.retrieve("query")
+
+        assert result.used_web_fallback is False
+        assert result.retrieval_confidence == 0.0

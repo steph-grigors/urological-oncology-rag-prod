@@ -238,7 +238,20 @@ class RAGRetriever:
         used_web_fallback = False
         if not graded and self._web_fallback is not None:
             t4 = time.perf_counter()
-            graded = self._web_fallback.search(query, max_results=k_rnk)
+            # PubMed returns unranked search hits. Score them with the same
+            # cross-encoder the local corpus goes through, rather than
+            # assigning a constant: every abstract used to arrive at exactly
+            # CONFIDENCE_LOW, so retrieval_confidence became exactly 0.45
+            # whenever this path fired -- a number nobody had measured, on
+            # results that had passed neither the quality gate nor a relevance
+            # judgement.
+            web_hits = self._web_fallback.search(query, max_results=k_rnk)
+            if web_hits:
+                web_ranked = self._reranker.rerank(query, web_hits, top_n=k_rnk)
+                # Held to the same bar as local evidence. If the reranker says
+                # these do not answer the question either, we are better off on
+                # the ungrounded path, which at least says so.
+                graded = [c for c in web_ranked if c.relevance_score >= CONFIDENCE_LOW]
             timings["web_fallback_ms"] = (time.perf_counter() - t4) * 1000
             used_web_fallback = bool(graded)
 
