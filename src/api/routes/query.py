@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from config.constants import normalise_topic
 from src.api.middleware.auth import api_key_fingerprint, require_api_key
+from src.api.model_selection import generator_for
+from src.generation.models import ModelNotAllowed
 from src.generation.confidence import gate
 from src.generation.source_card import chunk_to_source_detail
 from src.observability.logging import get_logger, query_id_var
@@ -43,6 +45,14 @@ class QueryRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=10)
     stream: bool = False
     system_prompt: str | None = Field(default=None, max_length=10000)
+    model: str | None = Field(
+        default=None,
+        description=(
+            "Generation model for this request. Must be one of the allowlisted "
+            "ids in src.generation.models; anything else is rejected with 400. "
+            "None means use the server default (GENERATION_MODEL)."
+        ),
+    )
 
     @field_validator("cancer_types", mode="before")
     @classmethod
@@ -160,6 +170,10 @@ class QueryResponse(BaseModel):
     request_id: str
     latency_ms: LatencyBreakdown
     quality: QueryQualityScores | None = None
+    model_used: str = Field(
+        default="",
+        description="The generation model that actually answered this request.",
+    )
 
 
 # ── Dependency accessors ──────────────────────────────────────────────────────
@@ -194,6 +208,11 @@ async def query_endpoint(
 ) -> Any:
     if retriever is None or generator is None:
         raise HTTPException(status_code=503, detail="Service not initialised")
+
+    try:
+        generator = generator_for(request, body.model, generator)
+    except ModelNotAllowed as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
     query_id = str(uuid.uuid4())
     query_id_var.set(query_id)
@@ -326,6 +345,7 @@ async def query_endpoint(
             total=total_ms,
         ),
         quality=quality,
+        model_used=gen_result.model_used or getattr(generator, "model", ""),
     )
 
     if body.stream:

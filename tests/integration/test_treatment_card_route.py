@@ -37,6 +37,20 @@ _VALID_REQUEST = {
 }
 
 
+def _mock_card_gen() -> MagicMock:
+    """
+    A CardGenerator mock that matches the real object's attribute types.
+
+    `model` and `provider` are plain strings on the real CardGenerator; left
+    as bare MagicMock attributes they fail TreatmentCardResponse.model_used
+    validation.
+    """
+    gen = MagicMock()
+    gen.model = "claude-sonnet-4-6"
+    gen.provider = "anthropic"
+    return gen
+
+
 def _make_retrieval_result() -> RetrievalResult:
     chunk = MagicMock()
     chunk.text = "ADT + abiraterone improved OS in mHSPC."
@@ -81,7 +95,7 @@ def client():
     mock_retriever = MagicMock()
     mock_retriever.retrieve.return_value = _make_retrieval_result()
 
-    mock_card_gen = MagicMock()
+    mock_card_gen = _mock_card_gen()
     mock_card_gen.translate_to_english.return_value = "metastatic prostate cancer first line"
     mock_card_gen.generate_card.return_value = _make_card_result()
 
@@ -180,7 +194,7 @@ class TestTreatmentCardServiceUnavailable:
         app = create_app()
         with TestClient(app, raise_server_exceptions=False) as c:
             app.state.retriever = None
-            app.state.card_generator = MagicMock()
+            app.state.card_generator = _mock_card_gen()
             resp = c.post("/treatment-card", json=_VALID_REQUEST, headers={"X-API-Key": "dev"})
         assert resp.status_code == 503
 
@@ -216,7 +230,7 @@ class TestLowConfidenceGate:
         app = create_app()
         mock_retriever = MagicMock()
         mock_retriever.retrieve.return_value = self._make_low_confidence_result()
-        mock_card_gen = MagicMock()
+        mock_card_gen = _mock_card_gen()
         mock_card_gen.translate_to_english.return_value = "prostate cancer"
         mock_card_gen.generate_card.return_value = _make_card_result()
 
@@ -231,7 +245,7 @@ class TestLowConfidenceGate:
         app = create_app()
         mock_retriever = MagicMock()
         mock_retriever.retrieve.return_value = self._make_low_confidence_result()
-        mock_card_gen = MagicMock()
+        mock_card_gen = _mock_card_gen()
         mock_card_gen.translate_to_english.return_value = "prostate cancer"
         mock_card_gen.generate_card.return_value = _make_card_result()
 
@@ -269,7 +283,7 @@ class TestWarningsPropagation:
         ]
         mock_retriever = MagicMock()
         mock_retriever.retrieve.return_value = _make_retrieval_result()
-        mock_card_gen = MagicMock()
+        mock_card_gen = _mock_card_gen()
         mock_card_gen.translate_to_english.return_value = "bladder cancer"
         mock_card_gen.generate_card.return_value = card_with_warning
 
@@ -296,7 +310,7 @@ class TestWarningsPropagation:
         ]
         mock_retriever = MagicMock()
         mock_retriever.retrieve.return_value = _make_retrieval_result()
-        mock_card_gen = MagicMock()
+        mock_card_gen = _mock_card_gen()
         mock_card_gen.translate_to_english.return_value = "prostate cancer"
         mock_card_gen.generate_card.return_value = card_with_warning
 

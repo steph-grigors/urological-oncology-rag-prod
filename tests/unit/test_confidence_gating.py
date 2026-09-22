@@ -133,7 +133,7 @@ class TestLLMClient:
         mock_cls.return_value = mock_client
 
         mock_resp = MagicMock()
-        mock_resp.content = [MagicMock(text="Answer text")]
+        mock_resp.content = [MagicMock(type="text", text="Answer text")]
         mock_resp.usage.input_tokens = 100
         mock_resp.usage.output_tokens = 50
         mock_client.messages.create.return_value = mock_resp
