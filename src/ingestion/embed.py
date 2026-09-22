@@ -6,11 +6,11 @@ Replaces `data_embeddings_scaled.py` with Qdrant as the vector store.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import time
-import uuid
 from dataclasses import dataclass
+
+from src.db.point_id import chunk_point_id
 
 logger = logging.getLogger(__name__)
 
@@ -168,9 +168,13 @@ def _metadata_dict(meta) -> dict:
 
 
 def _stable_uuid(chunk_id: str) -> str:
-    """Return a deterministic UUID string derived from chunk_id."""
-    digest = hashlib.md5(chunk_id.encode()).digest()
-    return str(uuid.UUID(bytes=digest))
+    """Return a deterministic UUID string derived from chunk_id.
+
+    Delegates to src/db/point_id.chunk_point_id so this path and the db layer
+    cannot drift apart again. The derivation is unchanged, so every point
+    already in production keeps its id.
+    """
+    return chunk_point_id(chunk_id)
 
 
 def _embed_with_retry(openai_client, texts: list[str], model: str, max_retries: int = 4) -> list | None:
