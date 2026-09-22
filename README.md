@@ -1,6 +1,10 @@
 # Urological Oncology RAG
 
-A production-grade Retrieval-Augmented Generation system for evidence-based answers about urological oncology. Covers prostate, bladder, kidney, and testicular cancer across 815 full-text papers from PubMed Central (2015–2025).
+A production-grade Retrieval-Augmented Generation system for evidence-based answers about urological oncology. Covers prostate, bladder, kidney, testicular, penile and adrenal cancer across 28,438 full-text papers from PubMed Central (2010–2026), indexed as 713,883 section-aware chunks.
+
+Two endpoints: `POST /query` for clinical evidence questions, and `POST /treatment-card` for structured treatment cards built from patient data, intended as support for multidisciplinary team meetings rather than as a diagnostic.
+
+Corpus figures measured against the production collection on 2026-09-22.
 
 ---
 
@@ -13,7 +17,7 @@ A production-grade Retrieval-Augmented Generation system for evidence-based answ
 │  ┌──────────────┐      ┌──────────────────────────────────────────┐ │
 │  │  Streamlit   │─────▶│             FastAPI  :8000               │ │
 │  │  UI  :8501   │◀─────│                                          │ │
-│  └──────────────┘      │  POST /query        GET /health          │ │
+│  └──────────────┘      │  POST /query        POST /treatment-card │ │
 │                        │  POST /eval/run     GET /eval/results    │ │
 │                        │  GET  /eval/status  GET /docs            │ │
 │                        └────────────┬─────────────────────────────┘ │
@@ -22,8 +26,8 @@ A production-grade Retrieval-Augmented Generation system for evidence-based answ
 │               ▼                     ▼                  ▼           │
 │  ┌─────────────────┐  ┌─────────────────────┐  ┌──────────────┐   │
 │  │  Qdrant  :6333  │  │  PostgreSQL  :5432  │  │  Langfuse    │   │
-│  │  vector store   │  │  doc store / BM25   │  │  :3000       │   │
-│  │  dense + sparse │  │  audit log          │  │  (optional   │   │
+│  │  vectors + all  │  │  audit log,         │  │  :3000       │   │
+│  │  chunk metadata │  │  conversations      │  │  (optional   │   │
 │  └─────────────────┘  └─────────────────────┘  │   profile)   │   │
 │                                                 └──────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
@@ -123,26 +127,34 @@ The ingestion pipeline fetches papers from PubMed Central, chunks them, generate
 
 ### Steps
 
+The pipeline is a single command. Fetch, parse, quality-gate, chunk, extract
+metadata, embed and upsert all run in one pass, checkpointing every 50 papers.
+
 ```bash
-# 1. Fetch papers from PubMed Central (requires OPENAI_API_KEY in environment)
-python -m src.ingestion.fetch --topics prostate bladder kidney testicular --max-per-topic 250
+# Everything since a date, all six cancer types
+python -m src.ingestion.pipeline --since-date 2026/05/10 --limit 1000
 
-# 2. Chunk and embed (writes to data/chunks/)
-python -m src.ingestion.embed
+# The last week — what the weekly scheduled job runs
+python -m src.ingestion.pipeline --since-days 7 --limit 2000
 
-# 3. Load into Qdrant and Postgres
-python -m src.ingestion.load
+# One topic, see what would be fetched without fetching it
+python -m src.ingestion.pipeline --cancer-types penile --dry-run
 
-# Run all three steps in sequence
-python -m src.ingestion.run_pipeline
+# After any ingestion run, refresh the BM25 disk cache so the next
+# API restart loads in seconds rather than re-scrolling the collection
+python scripts/rebuild_bm25_cache.py
 ```
+
+There is no separate fetch, embed or load step to run. Earlier versions of this
+README documented `src.ingestion.load` and `src.ingestion.run_pipeline`; neither
+module exists.
 
 ### Parameters
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--topics` | all four | Cancer types to fetch |
-| `--max-per-topic` | 250 | Papers per topic |
+| `--cancer-types` | all six | Cancer types to fetch |
+| `--limit` | 300 | Papers per topic |
 | `--chunk-size` | 200 words | Words per chunk (env: `CHUNK_SIZE_WORDS`) |
 | `--chunk-overlap` | 30 words | Overlap between chunks (env: `CHUNK_OVERLAP_WORDS`) |
 | `--collection` | `urological_oncology_papers` | Qdrant collection name |
