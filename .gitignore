@@ -52,3 +52,7 @@ rag_info/
 
 # Snapshots
 *.snapshot
+
+# Real patient narratives from the retrospective study — pseudonymised but
+# not fully de-identified, and this repo is public. Never commit.
+tests/fixtures/local/
