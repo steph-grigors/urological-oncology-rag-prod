@@ -90,11 +90,36 @@ class TestChunkGrading:
         result = retriever.retrieve("query")
         assert [c.chunk_id for c in result.chunks] == ["ambiguous"]
 
-    def test_bad_chunk_no_longer_dilutes_confidence(self):
+    def test_a_bad_chunk_is_dropped_but_still_lowers_confidence(self):
+        """Supersedes test_bad_chunk_no_longer_dilutes_confidence, which
+        asserted 0.9 here.
+
+        Both things should be true at once, and they were not. The irrelevant
+        chunk should not reach the model -- it does not -- but it is evidence
+        that retrieval went half wrong, and hiding it from the score put a
+        floor under the number: averaging only survivors of a
+        >= CONFIDENCE_LOW cut cannot produce a value below CONFIDENCE_LOW."""
         chunks = [_make_chunk("good", 0.9), _make_chunk("bad", 0.1)]
         retriever = _build_retriever(chunks)
         result = retriever.retrieve("query")
-        assert result.retrieval_confidence == pytest.approx(0.9)
+
+        assert [c.chunk_id for c in result.chunks] == ["good"]
+        # 0.35: mean of [0.9, 0.1] is 0.50, less 0.10 because no chunk carries
+        # an evidence_level, less 0.05 for the spread between them. The old
+        # behaviour reported 0.9 -- the surviving chunk's own score.
+        assert result.retrieval_confidence == pytest.approx(0.35)
+
+    def test_confidence_can_now_fall_below_the_grading_threshold(self):
+        """The floor this change removes. Previously impossible whenever any
+        chunk survived."""
+        chunks = [_make_chunk("ok", 0.5)] + [_make_chunk(f"bad{i}", 0.05) for i in range(4)]
+        retriever = _build_retriever(chunks)
+        result = retriever.retrieve("query")
+
+        assert result.chunks, "one chunk should still survive grading"
+        # 0.10, against 0.50 under the old behaviour.
+        assert result.retrieval_confidence < CONFIDENCE_LOW
+        assert result.retrieval_confidence == pytest.approx(0.10)
 
 
 class TestWebFallback:
@@ -167,7 +192,11 @@ class TestWebFallbackResultsAreScored:
         result = retriever.retrieve("query")
 
         assert result.used_web_fallback is True
-        assert result.retrieval_confidence == pytest.approx(0.82)
+        # 0.72: the measured 0.82, less the 0.10 evidence penalty that applies
+        # because a PubMed abstract carries no evidence_level. The point is
+        # that it derives from a real score rather than being the constant
+        # 0.45 every abstract used to arrive with.
+        assert result.retrieval_confidence == pytest.approx(0.72)
         assert result.retrieval_confidence != pytest.approx(CONFIDENCE_LOW)
 
     def test_hits_the_reranker_rejects_are_dropped(self):

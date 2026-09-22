@@ -93,6 +93,14 @@ HEDGED_ANSWER_PREFIX = (
     "or current clinical guidelines.\n\n"
 )
 
+CAVEATED_ANSWER_PREFIX = (
+    "**Note:** Retrieval found only weak matches for this question. Most of the "
+    "documents below do not directly address it, and the ones that come closest may "
+    "be tangential. State plainly, at the top of your answer, which parts of the "
+    "question the evidence below does and does not cover, and do not fill the gaps "
+    "from general knowledge without saying so.\n\n"
+)
+
 LOW_CONFIDENCE_REFUSAL = (
     "I cannot provide a reliable evidence summary for this question. "
     "The retrieved literature does not contain sufficient relevant information to answer confidently. "
@@ -160,15 +168,30 @@ def format_context_block(chunks: list, max_chars: int = 8000) -> str:
     return "\n\n".join(blocks)
 
 
+# Prefix per confidence band. "caveated" previously collapsed into "hedged",
+# so the 0.2-0.45 band and the 0.45-0.75 band produced identical prompts --
+# and in practice the caveated band was unreachable anyway, because confidence
+# was averaged over chunks that had already passed a >= 0.45 filter.
+_CONFIDENCE_PREFIXES = {
+    "high": "",
+    "hedged": HEDGED_ANSWER_PREFIX,
+    "caveated": CAVEATED_ANSWER_PREFIX,
+}
+
+
 def build_prompt(
     question: str,
     chunks: list,
     max_context_chars: int = 8000,
     confidence_level: str = "high",
 ) -> list[dict]:
-    """Return the user-turn messages list ready for LLMClient.complete()."""
+    """Return the user-turn messages list ready for LLMClient.complete().
+
+    `confidence_level` is a ConfidenceGate value: "high", "hedged" or
+    "caveated". An unrecognised value is treated as "hedged", which is the
+    cautious direction to fail in.
+    """
     context = format_context_block(chunks, max_context_chars)
     user_content = USER_PROMPT_TEMPLATE.format(context_block=context, question=question)
-    if confidence_level != "high":
-        user_content = HEDGED_ANSWER_PREFIX + user_content
-    return [{"role": "user", "content": user_content}]
+    prefix = _CONFIDENCE_PREFIXES.get(confidence_level, HEDGED_ANSWER_PREFIX)
+    return [{"role": "user", "content": prefix + user_content}]

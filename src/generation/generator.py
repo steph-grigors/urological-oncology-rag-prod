@@ -50,9 +50,18 @@ class ClinicalGenerator:
         ranked_chunks: list["RankedChunk"],
         conversation_history: list[dict] | None = None,
         system_prompt: str | None = None,
+        confidence_score: float | None = None,
     ) -> GenerationResult:
-        confidence_result = compute_confidence(ranked_chunks)
-        confidence_gate = gate(confidence_result.score)
+        # `confidence_score` comes from the retriever, which scores the full
+        # reranked candidate set. Recomputing here would see only the chunks
+        # that survived grading, which cannot score below the grading
+        # threshold -- the floor that made the caveated band unreachable.
+        if confidence_score is None:
+            confidence_result = compute_confidence(ranked_chunks)
+            score = confidence_result.score
+        else:
+            score = confidence_score
+        confidence_gate = gate(score)
         # A caller-supplied system_prompt is an addition to the safety core,
         # never a replacement for it. Before this, passing one replaced the
         # entire prompt: scope limits, citation discipline and the
@@ -75,7 +84,7 @@ class ClinicalGenerator:
                 provider="",
                 prompt_tokens=0,
                 completion_tokens=0,
-                confidence_score=confidence_result.score,
+                confidence_score=score,
             )
 
         if confidence_gate == ConfidenceGate.REFUSED:
@@ -99,11 +108,13 @@ class ClinicalGenerator:
                 provider=self._llm.provider,
                 prompt_tokens=response.input_tokens,
                 completion_tokens=response.output_tokens,
-                confidence_score=confidence_result.score,
+                confidence_score=score,
                 latency_ms=latency_ms,
             )
 
-        confidence_level = "high" if confidence_gate == ConfidenceGate.HIGH else "hedged"
+        # The gate's own value, so "caveated" reaches the prompt as itself
+        # rather than collapsing into "hedged".
+        confidence_level = confidence_gate.value
         messages = build_prompt(query, ranked_chunks, confidence_level=confidence_level)
 
         # Prepend last 5 turns (10 messages) of conversation history
@@ -136,7 +147,7 @@ class ClinicalGenerator:
             provider=self._llm.provider,
             prompt_tokens=response.input_tokens,
             completion_tokens=response.output_tokens,
-            confidence_score=confidence_result.score,
+            confidence_score=score,
             hallucinated_citations=hallucinated,
             latency_ms=latency_ms,
         )
