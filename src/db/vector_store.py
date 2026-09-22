@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from qdrant_client import QdrantClient
+from src.db.point_id import chunk_point_id
 from qdrant_client.models import (
     Distance,
     FieldCondition,
@@ -292,8 +293,14 @@ class QdrantStore:
 # ── Private helpers ───────────────────────────────────────────────────────────
 
 def _chunk_uuid(chunk_id: str) -> str:
-    """Stable UUID derived from the string chunk_id."""
-    return str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk_id))
+    """Stable UUID derived from the string chunk_id.
+
+    Delegates to src/db/point_id.chunk_point_id, the single definition. This
+    used to derive its own id with uuid5, which disagreed with the ingestion
+    path's MD5 derivation, so the same chunk written through both paths was
+    stored twice rather than updated.
+    """
+    return chunk_point_id(chunk_id)
 
 
 def _to_point(c: ChunkDocument) -> PointStruct:
