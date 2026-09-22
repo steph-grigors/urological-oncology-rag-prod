@@ -116,3 +116,117 @@ def test_resolve_returns_default_unvalidated():
 
 def test_resolve_passes_through_allowlisted_model():
     assert resolve("claude-opus-5", "claude-sonnet-4-6") == "claude-opus-5"
+
+
+# ── Deadlock regression ───────────────────────────────────────────────────────
+#
+# The first version of model_selection used one non-reentrant lock: _select
+# took it and then called _client_for, which took the same lock. Selecting
+# any non-default model hung forever -- which is to say, the feature hung
+# whenever it was actually used. The earlier route test missed it because it
+# monkeypatched _client_for away, so the nested acquisition never happened.
+# These tests drive the real code path and fail, rather than hang, if the
+# nesting comes back.
+
+import threading as _threading
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+
+def _fake_app():
+    return SimpleNamespace(state=SimpleNamespace())
+
+
+def _run_with_timeout(fn, seconds=10):
+    """Run fn in a thread; report whether it finished rather than blocking."""
+    done: list = []
+    err: list = []
+
+    def target():
+        try:
+            done.append(fn())
+        except BaseException as exc:  # noqa: BLE001 - surfaced to the test
+            err.append(exc)
+
+    t = _threading.Thread(target=target, daemon=True)
+    t.start()
+    t.join(timeout=seconds)
+    return (not t.is_alive()), (done[0] if done else None), (err[0] if err else None)
+
+
+def test_selecting_a_non_default_model_does_not_deadlock():
+    import src.api.model_selection as sel
+
+    app = _fake_app()
+    request = SimpleNamespace(app=app)
+
+    with patch("src.generation.llm_client.LLMClient") as fake_client_cls:
+        fake_client_cls.side_effect = lambda provider, model, api_key: MagicMock(
+            model=model, provider=provider
+        )
+        finished, result, err = _run_with_timeout(
+            lambda: sel._select(
+                request,
+                "claude-opus-5",
+                MagicMock(model="claude-sonnet-4-6"),
+                lambda client: SimpleNamespace(model=client.model),
+            )
+        )
+
+    assert finished, "model selection deadlocked on a non-default model"
+    assert err is None, f"model selection raised: {err!r}"
+    assert result.model == "claude-opus-5"
+
+
+def test_concurrent_selection_of_several_models_does_not_deadlock():
+    """Two locks that are never nested must also survive real contention."""
+    import src.api.model_selection as sel
+
+    app = _fake_app()
+    request = SimpleNamespace(app=app)
+    default = MagicMock(model="claude-sonnet-4-6")
+    results: list = []
+    errors: list = []
+
+    def build(client):
+        return SimpleNamespace(model=client.model)
+
+    def worker(model_id):
+        try:
+            results.append(sel._select(request, model_id, default, build).model)
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    with patch("src.generation.llm_client.LLMClient") as fake_client_cls:
+        fake_client_cls.side_effect = lambda provider, model, api_key: MagicMock(
+            model=model, provider=provider
+        )
+        threads = [
+            _threading.Thread(target=worker, args=(m,), daemon=True)
+            for m in ["claude-opus-5", "claude-sonnet-5"] * 4
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=10)
+
+        assert not any(t.is_alive() for t in threads), "concurrent selection deadlocked"
+
+    assert not errors, f"concurrent selection raised: {errors!r}"
+    assert len(results) == 8
+    assert set(results) == {"claude-opus-5", "claude-sonnet-5"}
+
+
+def test_client_is_cached_per_model_not_rebuilt_per_request():
+    import src.api.model_selection as sel
+
+    app = _fake_app()
+    with patch("src.generation.llm_client.LLMClient") as fake_client_cls:
+        fake_client_cls.side_effect = lambda provider, model, api_key: MagicMock(
+            model=model, provider=provider
+        )
+        first = sel._client_for(app, "claude-opus-5")
+        second = sel._client_for(app, "claude-opus-5")
+
+    assert first is second
+    assert fake_client_cls.call_count == 1

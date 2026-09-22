@@ -22,7 +22,12 @@ from src.generation.models import ModelNotAllowed, get_spec, resolve
 if TYPE_CHECKING:
     from fastapi import Request
 
-_lock = threading.Lock()
+# Two separate locks, never held at the same time. A single lock here
+# deadlocked: _select held it and then called _client_for, which tried to
+# take the same non-reentrant lock. Clients are therefore built outside the
+# generator lock, and neither function calls the other while holding one.
+_client_lock = threading.Lock()
+_generator_lock = threading.Lock()
 
 
 def _client_cache(app: Any) -> dict:
@@ -42,7 +47,7 @@ def _client_for(app: Any, model_id: str):
     if client is not None:
         return client
 
-    with _lock:
+    with _client_lock:
         # Re-check: another thread may have built it while we waited.
         client = cache.get(model_id)
         if client is not None:
@@ -81,13 +86,20 @@ def _select(request: "Request", requested: str | None, default_instance: Any, bu
 
     key = (build.__name__, model_id)
     gen = cache.get(key)
-    if gen is None:
-        with _lock:
-            gen = cache.get(key)
-            if gen is None:
-                gen = build(_client_for(request.app, model_id))
-                cache[key] = gen
-    return gen
+    if gen is not None:
+        return gen
+
+    # Built before taking the generator lock, never underneath it: nesting
+    # the two is what deadlocked. _client_for does its own locking, so at
+    # most one client per model is cached even if two threads race here.
+    client = _client_for(request.app, model_id)
+
+    with _generator_lock:
+        gen = cache.get(key)
+        if gen is None:
+            gen = build(client)
+            cache[key] = gen
+        return gen
 
 
 def generator_for(request: "Request", requested: str | None, default_instance: Any):
