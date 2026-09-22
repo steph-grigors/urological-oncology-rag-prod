@@ -56,6 +56,30 @@
         "Does it cite [Doc N] markers despite having no documents? That would be fabrication.",
         "Does a stronger model become MORE confident here? That is a regression, not an improvement."
       ]
+    },
+    {
+      "id": "Q3",
+      "label": "caveated band (verified)",
+      "expects": "caveated",
+      "verified_against_production": {
+        "date": "2026-09-22",
+        "sources_returned": 1,
+        "confidence_score": 0.31,
+        "evidence_quality": "caveated"
+      },
+      "body": {
+        "query": "What is the optimal adjuvant systemic therapy for sarcomatoid dedifferentiation in penile squamous cell carcinoma?",
+        "cancer_types": [
+          "penile"
+        ],
+        "top_k": 5
+      },
+      "rationale": "Retrieval finds one usable passage out of five candidates. Before 2026-09-22 this reported 0.482 and 'hedged', because confidence was averaged over survivors of the >= 0.45 filter and so could not fall below it. Scored over the full candidate set it is 0.310, which is the caveated band. Note the near-identical longer wording in Q2's rationale retrieves differently (4 sources, 0.536, hedged) -- small phrasing changes move retrieval, so use this wording exactly.",
+      "watch_for": [
+        "Does the answer state which parts of the question the evidence does and does not cover?",
+        "Does it distinguish what the single relevant passage supports from what it is extrapolating?",
+        "A model that answers this as confidently as Q1 is worse, not better."
+      ]
     }
   ],
   "treatment_card_cases": [
