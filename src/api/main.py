@@ -19,6 +19,7 @@ from config.settings import get_settings
 from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.routes import eval as eval_router
 from src.api.routes import health, ingestion as ingestion_router, query, treatment_card as treatment_card_router
+from src.api.routes import models as models_router
 from src.observability.logging import get_logger, request_id_var, setup_logging
 from src.observability.tracing import setup_tracing
 
@@ -178,6 +179,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(eval_router.router)
     app.include_router(ingestion_router.router)
+    app.include_router(models_router.router)
 
     return app
 

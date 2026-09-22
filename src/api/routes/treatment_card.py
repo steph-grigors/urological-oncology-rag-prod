@@ -16,6 +16,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from src.api.middleware.auth import api_key_fingerprint, require_api_key
+from src.api.model_selection import card_generator_for
+from src.generation.models import ModelNotAllowed
 from src.observability.logging import get_logger, query_id_var
 from config.constants import CONFIDENCE_REFUSE, normalise_topic
 
@@ -39,6 +41,14 @@ class TreatmentCardRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=10)
     system_prompt: str | None = Field(default=None, max_length=10000)
     conversation_id: str | None = None
+    model: str | None = Field(
+        default=None,
+        description=(
+            "Generation model for this request. Must be one of the allowlisted "
+            "ids in src.generation.models; anything else is rejected with 400. "
+            "None means use the server default (GENERATION_MODEL)."
+        ),
+    )
     language: Literal["fr", "en"] = Field(
         default="fr",
         description=(
@@ -108,6 +118,10 @@ class TreatmentCardResponse(BaseModel):
     retrieval_metadata: dict
     request_id: str
     latency_ms: int
+    model_used: str = Field(
+        default="",
+        description="The generation model that actually produced this card.",
+    )
 
 
 # ── Dependency accessors ──────────────────────────────────────────────────────
@@ -137,6 +151,11 @@ async def treatment_card_endpoint(
 ) -> Any:
     if retriever is None or card_generator is None:
         raise HTTPException(status_code=503, detail="Service not initialised")
+
+    try:
+        card_generator = card_generator_for(request, body.model, card_generator)
+    except ModelNotAllowed as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
     query_id = str(uuid.uuid4())
     query_id_var.set(query_id)
@@ -245,6 +264,7 @@ async def treatment_card_endpoint(
         retrieval_metadata=card_result.retrieval_metadata,
         request_id=request_id,
         latency_ms=total_ms,
+        model_used=getattr(card_generator, "model", ""),
     )
 
 

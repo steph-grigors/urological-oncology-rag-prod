@@ -23,6 +23,36 @@ class LLMResponse:
     model: str
 
 
+_THINKING_TYPES = frozenset({"thinking", "redacted_thinking"})
+
+
+def _first_text(blocks) -> str:
+    """
+    Return the first text block's content.
+
+    Models from Sonnet 5 onwards may emit a `thinking` block ahead of the
+    answer, so the old `content[0].text` raised AttributeError whenever the
+    model chose to think. Scan for the text block instead of assuming it is
+    first. Returns "" if the response carried no text block at all.
+    """
+    # Preferred path: the block the API labelled as text.
+    for block in blocks:
+        if getattr(block, "type", None) == "text":
+            return block.text
+
+    # Fallback for shape drift: any non-thinking block carrying a real
+    # string `text`. Without this, an unrecognised block layout would make
+    # complete() return "" silently -- an empty clinical answer is a worse
+    # failure than a loud one, so prefer recovering the text if it is there.
+    for block in blocks:
+        if getattr(block, "type", None) in _THINKING_TYPES:
+            continue
+        text = getattr(block, "text", None)
+        if isinstance(text, str):
+            return text
+    return ""
+
+
 class LLMClient:
     """
     Thin wrapper around Anthropic and OpenAI SDKs with a uniform interface.
@@ -67,7 +97,7 @@ class LLMClient:
                 max_tokens=max_tokens,
             )
             return LLMResponse(
-                content=resp.content[0].text,
+                content=_first_text(resp.content),
                 input_tokens=resp.usage.input_tokens,
                 output_tokens=resp.usage.output_tokens,
                 model=self._model,

@@ -44,6 +44,14 @@ class ClinicalGenerator:
     def __init__(self, llm_client: "LLMClient | None" = None) -> None:
         self._llm = llm_client
 
+    @property
+    def model(self) -> str:
+        return self._llm.model if self._llm is not None else ""
+
+    @property
+    def provider(self) -> str:
+        return self._llm.provider if self._llm is not None else ""
+
     def generate(
         self,
         query: str,
