@@ -231,15 +231,22 @@ class TestRealFileLoading:
             assert "warning" in entry, f"Missing 'warning' in entry: {entry}"
             assert entry["warning"].strip(), f"Empty warning in entry: {entry}"
 
-    def test_atezolizumab_ema_entry_present(self):
+    def test_atezolizumab_ema_coverage_present(self):
+        """
+        EMA coverage must still exist after the EMA and FDA rows were merged.
+
+        This asserted jurisdiction == "EMA" when the same withdrawal was
+        stored as two rows. It is now one row covering both regulators, so
+        the check is that EMA is covered -- not that it has a row to itself.
+        """
         from src.generation.post_process import _load_withdrawals
         entries = _load_withdrawals()
         ema_atez = [
             e for e in entries
             if "atezolizumab" in e.get("drug", "").lower()
-            and e.get("jurisdiction", "").upper() == "EMA"
+            and "EMA" in e.get("jurisdiction", "").upper()
         ]
-        assert ema_atez, "Seeded EMA atezolizumab entry must be present"
+        assert ema_atez, "Seeded atezolizumab entry must still cover the EMA"
 
     def test_atezolizumab_fires_on_real_data(self):
         # Ensures the seeded entry actually triggers for a representative answer

@@ -160,7 +160,11 @@ CONFIDENCE_REFUSE: Final[float] = 0.2  # Hard refusal — no answer produced
 
 # ── Generation ────────────────────────────────────────────────────────────────
 
-MAX_ANSWER_TOKENS: Final[int] = 2000
+# Caps thinking AND visible text together. At 2000 a hard /query question hit
+# the ceiling on both models tested (stop_reason=max_tokens), and on Opus 5 --
+# which thinks by default, unlike Sonnet 4.6 -- the whole budget was consumed
+# by reasoning, returning a response with no text block at all.
+MAX_ANSWER_TOKENS: Final[int] = 8000
 GENERATION_TEMPERATURE: Final[float] = 0.1
 
 # Medical disclaimer appended to every answer

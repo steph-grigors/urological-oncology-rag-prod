@@ -230,3 +230,40 @@ def test_client_is_cached_per_model_not_rebuilt_per_request():
 
     assert first is second
     assert fake_client_cls.call_count == 1
+
+
+# ── Empty-answer guard ────────────────────────────────────────────────────────
+#
+# On a thinking model a hard question can spend the whole max_tokens budget
+# reasoning and return content == ['thinking'] with no text block. Measured in
+# production on claude-opus-5 at max_tokens=2000: stop_reason max_tokens,
+# 2000/2000 output tokens, zero visible characters. Without a guard that
+# renders as a blank answer with no error.
+
+def test_generator_reports_rather_than_returning_a_blank_answer():
+    from src.generation.generator import ClinicalGenerator
+
+    class _Resp:
+        content = ""          # what _first_text returns for a thinking-only reply
+        input_tokens = 5000
+        output_tokens = 8000
+        model = "claude-opus-5"
+
+    llm = MagicMock()
+    llm.complete.return_value = _Resp()
+    llm.provider = "anthropic"
+
+    chunk = MagicMock()
+    chunk.relevance_score = 0.9
+    chunk.metadata = {"study_design": "rct", "title": "T", "year": 2024}
+    chunk.text = "evidence"
+
+    gen = ClinicalGenerator(llm_client=llm)
+    result = gen.generate("a very hard question", [chunk])
+
+    assert result.answer.strip(), "must not return an empty answer"
+    assert "output limit" in result.answer
+    assert result.citations == []
+    assert result.model_used == "claude-opus-5"
+    # Not retried: a fresh call cannot resume the truncated turn.
+    assert llm.complete.call_count == 1
