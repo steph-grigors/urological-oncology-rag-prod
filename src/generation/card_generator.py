@@ -56,7 +56,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from src.generation.citations import DOC_TAG_RE, strip_invalid_citations
-from src.generation.post_process import _load_withdrawals, _localized_warning
+from src.generation.post_process import (
+    _load_withdrawals,
+    _localized_warning,
+    regulatory_dedupe_key,
+)
 from src.generation.source_card import chunk_to_source_detail, disclosure_source_detail
 
 if TYPE_CHECKING:
@@ -871,6 +875,10 @@ def _apply_regulatory_to_triplets(
 
     for triplet in triplets:
         drug_lower = triplet.drug.lower()
+        # Per triplet: one alert per withdrawal event, not one per row. Two
+        # rows for the same withdrawal in different jurisdictions would
+        # otherwise stack two near-identical alerts in the same treatment cell.
+        seen: set[tuple[str, str]] = set()
         for entry in entries:
             names = [entry.get("drug", "")] + entry.get("aliases", [])
             if not any(n.lower() in drug_lower for n in names if n):
@@ -880,6 +888,10 @@ def _apply_regulatory_to_triplets(
                 kw.lower() in patient_context for kw in indication_kws
             ):
                 continue
+            key = regulatory_dedupe_key(entry)
+            if key in seen:
+                continue
+            seen.add(key)
             message = _localized_warning(entry, language)
             if message:
                 triplet.warnings.append(

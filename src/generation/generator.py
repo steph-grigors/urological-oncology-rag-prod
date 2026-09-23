@@ -20,6 +20,9 @@ from src.generation.prompts import (
     build_prompt,
     with_safety_core,
 )
+from src.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from src.generation.llm_client import LLMClient
@@ -132,6 +135,40 @@ class ClinicalGenerator:
         start = time.monotonic()
         response = self._llm.complete(active_system_prompt, messages, max_tokens=MAX_ANSWER_TOKENS)
         latency_ms = (time.monotonic() - start) * 1000
+
+        if not response.content.strip():
+            # The response carried no text. Measured cause: on a thinking model
+            # a hard question can spend the whole max_tokens budget reasoning
+            # and stop before emitting any visible text (stop_reason
+            # max_tokens, content == ['thinking']).
+            #
+            # Deliberately not retried. A retry is a fresh request: the API is
+            # stateless, thinking is not carried across calls, and assistant
+            # prefill -- the only way to ask a model to continue its own
+            # truncated turn -- returns 400 on every model in the picker. So a
+            # retry would re-reason from nothing and likely hit the same wall
+            # at the same cost. Say so instead of rendering a blank answer.
+            logger.error(
+                "Generation returned no text (model=%s, completion_tokens=%d) -- "
+                "budget likely exhausted before any visible output",
+                response.model,
+                response.output_tokens,
+            )
+            return GenerationResult(
+                answer=(
+                    "The model reached its output limit before producing an answer. "
+                    "This question is unusually broad — narrowing it, or lowering the "
+                    "number of sources retrieved, should let it complete."
+                ),
+                citations=[],
+                evidence_quality=confidence_gate.value,
+                model_used=response.model,
+                provider=self._llm.provider,
+                prompt_tokens=response.input_tokens,
+                completion_tokens=response.output_tokens,
+                confidence_score=score,
+                latency_ms=latency_ms,
+            )
 
         answer, hallucinated = self._check_citations(response.content, len(ranked_chunks))
         if hallucinated:
