@@ -31,7 +31,6 @@ async def list_models(request: Request) -> dict[str, Any]:
                 "id": m.id,
                 "label": m.label,
                 "provider": m.provider,
-                "note": m.note,
                 "is_default": m.id == default_model,
             }
             for m in SELECTABLE_MODELS

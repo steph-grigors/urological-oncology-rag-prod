@@ -16,7 +16,6 @@ class ModelSpec:
     id: str
     label: str
     provider: str
-    note: str = ""
 
 
 # Verified against the live Anthropic API on 2026-09-22: each model here
@@ -32,19 +31,16 @@ SELECTABLE_MODELS: tuple[ModelSpec, ...] = (
         id="claude-sonnet-4-6",
         label="Claude Sonnet 4.6",
         provider="anthropic",
-        note="Baseline. The only model measured against the retrospective study cases.",
     ),
     ModelSpec(
         id="claude-sonnet-5",
         label="Claude Sonnet 5",
         provider="anthropic",
-        note="~40% faster. Proposes more options; verify contraindications.",
     ),
     ModelSpec(
         id="claude-opus-5",
         label="Claude Opus 5",
         provider="anthropic",
-        note="Most capable, highest cost per request. Not yet measured clinically.",
     ),
 )
 
